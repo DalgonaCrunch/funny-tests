@@ -955,6 +955,8 @@ function startTest(index) {
 // ──────────────────────────────────────────────
 //  RENDER QUESTION
 // ──────────────────────────────────────────────
+let shuffledChoices = [];
+
 function renderQuestion() {
   const q = currentTest.questions[currentQuestion];
   const total = currentTest.questions.length;
@@ -963,13 +965,16 @@ function renderQuestion() {
   document.getElementById('progress-fill').style.width = pct + '%';
   document.getElementById('progress-text').textContent = `${currentQuestion + 1} / ${total}`;
 
+  // 선택지 순서 랜덤 셔플
+  shuffledChoices = [...q.choices].sort(() => Math.random() - 0.5);
+
   const area = document.getElementById('question-area');
   area.innerHTML = `
     <div class="question-card">
       <span class="question-number">Q${currentQuestion + 1}</span>
       <div class="question-text">${q.text}</div>
       <div class="choices">
-        ${q.choices.map((c, i) => `
+        ${shuffledChoices.map((c, i) => `
           <button class="choice-btn" onclick="selectChoice(${i})">${c.text}</button>
         `).join('')}
       </div>
@@ -985,7 +990,7 @@ function selectChoice(index) {
   btns.forEach(b => b.disabled = true);
   btns[index].classList.add('selected');
 
-  const choice = currentTest.questions[currentQuestion].choices[index];
+  const choice = shuffledChoices[index];
   answers.push(choice.type);
 
   setTimeout(() => {
