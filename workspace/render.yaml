@@ -2,8 +2,8 @@ services:
   - type: web
     name: funny-tests
     runtime: python
-    buildCommand: ""
+    buildCommand: pip install -r requirements.txt
     startCommand: python3 server.py
     envVars:
       - key: PORT
-        value: 10000
+        value: "10000"
