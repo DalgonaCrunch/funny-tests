@@ -1261,7 +1261,6 @@ function collectFormData() {
   // Collect reserve questions
   const reserveQuestions = [];
   const rqBlocks = document.querySelectorAll('#reserve-builder .reserve-block');
-  const types = getTypeLabels(resultTypeCount);
   for (let i = 0; i < rqBlocks.length; i++) {
     const qText = rqBlocks[i].querySelector('.r-q-text-input').value.trim();
     if (!qText) continue;  // 빈 예비문항은 건너뜀
