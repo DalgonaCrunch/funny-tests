@@ -784,8 +784,8 @@ const COLOR_PRESETS = [
   { name: 'card-rose', gradient: 'linear-gradient(135deg, #f093fb, #f5576c)', label: '로즈-핑크' },
   { name: 'card-forest', gradient: 'linear-gradient(135deg, #11998e, #38ef7d)', label: '포레스트' },
   { name: 'card-night', gradient: 'linear-gradient(135deg, #667eea, #764ba2)', label: '나이트' },
-  { name: 'card-coral', gradient: 'linear-gradient(135deg, #ff9a9e, #fecfef)', label: '코랄' },
-  { name: 'card-sky', gradient: 'linear-gradient(135deg, #a1c4fd, #c2e9fb)', label: '스카이' },
+  { name: 'card-coral', gradient: 'linear-gradient(135deg, #e8736f, #d4829e)', label: '코랄' },
+  { name: 'card-sky', gradient: 'linear-gradient(135deg, #6a9fe8, #8bb8d9)', label: '스카이' },
 ];
 
 let selectedColor = COLOR_PRESETS[0].name;
@@ -997,7 +997,7 @@ function confirmDelete(id) {
 }
 
 // ──────────────────────────────────────────────
-//  EDIT TEST (Quick Edit Modal)
+//  EDIT TEST — opens full create form with data filled
 // ──────────────────────────────────────────────
 function openEditModal(id) {
   const all = getAllTests();
@@ -1005,50 +1005,14 @@ function openEditModal(id) {
   if (!test) return;
 
   const isBuiltin = BUILTIN_TESTS.some(b => b.id === id);
-
-  const content = document.getElementById('edit-form-content');
-  content.innerHTML = `
-    <div class="form-group">
-      <label>이모지</label>
-      <input type="text" id="edit-emoji" value="${test.emoji}" maxlength="4" ${isBuiltin ? 'disabled' : ''}>
-    </div>
-    <div class="form-group">
-      <label>제목</label>
-      <input type="text" id="edit-title" value="${escapeHtml(test.title)}" ${isBuiltin ? 'disabled' : ''}>
-    </div>
-    <div class="form-group">
-      <label>설명</label>
-      <textarea id="edit-desc" rows="2" ${isBuiltin ? 'disabled' : ''}>${escapeHtml(test.desc)}</textarea>
-    </div>
-    <div class="form-group">
-      <label>배지</label>
-      <input type="text" id="edit-badge" value="${escapeHtml(test.badge)}" ${isBuiltin ? 'disabled' : ''}>
-    </div>
-    ${isBuiltin ? '<p style="font-size:12px;color:var(--danger);margin-top:8px;">기본 테스트는 수정할 수 없습니다.</p>' : ''}
-  `;
-
-  const saveBtn = document.getElementById('modal-edit-save');
   if (isBuiltin) {
-    saveBtn.style.display = 'none';
-  } else {
-    saveBtn.style.display = '';
-    saveBtn.onclick = async () => {
-      const tests = await getCustomTests();
-      const idx = tests.findIndex(t => t.id === id);
-      if (idx === -1) return;
-
-      tests[idx].emoji = document.getElementById('edit-emoji').value || tests[idx].emoji;
-      tests[idx].title = document.getElementById('edit-title').value || tests[idx].title;
-      tests[idx].desc = document.getElementById('edit-desc').value || tests[idx].desc;
-      tests[idx].badge = document.getElementById('edit-badge').value || tests[idx].badge;
-
-      await setCustomTests(tests);
-      closeModal('modal-edit');
-      await renderTestList();
-      showToast('테스트가 수정되었습니다.');
-    };
+    showToast('기본 테스트는 수정할 수 없습니다.');
+    return;
   }
-  openModal('modal-edit');
+
+  editingTestId = test.id;
+  fillFormFromData(test);
+  showToast('테스트를 수정 중입니다. 변경 후 저장 버튼을 누르세요.');
 }
 
 function escapeHtml(str) {
