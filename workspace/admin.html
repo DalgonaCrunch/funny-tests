@@ -1,0 +1,1621 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>심리테스트 관리자 페이지</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --pink: #ff6b9d;
+  --purple: #c44dff;
+  --blue: #4d79ff;
+  --mint: #36d6b5;
+  --yellow: #ffc940;
+  --orange: #ff8c42;
+  --bg: #f5f0ff;
+  --card-radius: 20px;
+  --btn-radius: 16px;
+  --shadow: 0 8px 32px rgba(120, 80, 200, 0.12);
+  --shadow-hover: 0 12px 40px rgba(120, 80, 200, 0.22);
+  --danger: #ff4757;
+  --success: #2ed573;
+  --input-border: #e0d6f0;
+  --input-focus: #c44dff;
+}
+
+body {
+  font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  min-height: 100vh;
+  color: #333;
+  overflow-x: hidden;
+}
+
+/* === Background blobs === */
+.bg-blobs {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
+}
+.bg-blobs span {
+  position: absolute; border-radius: 50%; filter: blur(80px); opacity: .3;
+}
+.bg-blobs span:nth-child(1) { width: 420px; height: 420px; background: #e0c3fc; top: -100px; left: -80px; animation: float1 18s ease-in-out infinite; }
+.bg-blobs span:nth-child(2) { width: 360px; height: 360px; background: #fbc2eb; bottom: -60px; right: -60px; animation: float2 22s ease-in-out infinite; }
+.bg-blobs span:nth-child(3) { width: 300px; height: 300px; background: #a1c4fd; top: 40%; left: 50%; animation: float3 20s ease-in-out infinite; }
+
+@keyframes float1 { 0%,100%{ transform: translate(0,0); } 50%{ transform: translate(60px,80px); } }
+@keyframes float2 { 0%,100%{ transform: translate(0,0); } 50%{ transform: translate(-50px,-70px); } }
+@keyframes float3 { 0%,100%{ transform: translate(0,0); } 50%{ transform: translate(-40px,50px); } }
+
+/* === Layout === */
+.container {
+  position: relative; z-index: 1;
+  max-width: 800px; margin: 0 auto; padding: 20px 16px 60px;
+}
+
+/* === Header === */
+.admin-header {
+  text-align: center; padding: 28px 0 12px;
+}
+.admin-header h1 {
+  font-size: 28px; font-weight: 900;
+  background: linear-gradient(135deg, var(--purple), var(--blue));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.admin-header p {
+  margin-top: 6px; font-size: 14px; color: #9b8ec4; font-weight: 500;
+}
+.admin-header .nav-link {
+  display: inline-flex; align-items: center; gap: 4px;
+  color: #9b8ec4; text-decoration: none; font-size: 14px; font-weight: 500;
+  margin-top: 8px; transition: color .2s;
+}
+.admin-header .nav-link:hover { color: var(--purple); }
+
+/* === Tabs === */
+.tabs {
+  display: flex; gap: 8px; margin: 24px 0 20px;
+  background: #fff; border-radius: 16px; padding: 6px;
+  box-shadow: var(--shadow);
+}
+.tab-btn {
+  flex: 1; padding: 12px 8px; border: none; border-radius: 12px;
+  font-family: inherit; font-size: 14px; font-weight: 700;
+  cursor: pointer; background: transparent; color: #9b8ec4;
+  transition: all .25s;
+}
+.tab-btn.active {
+  background: linear-gradient(135deg, var(--purple), var(--pink));
+  color: #fff; box-shadow: 0 4px 16px rgba(180,80,200,.2);
+}
+.tab-btn:hover:not(.active) { background: #f3edff; color: var(--purple); }
+
+.tab-panel { display: none; }
+.tab-panel.active { display: block; animation: fadeIn .3s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+/* === Cards & Lists === */
+.section-title {
+  font-size: 18px; font-weight: 700; color: #4a3878;
+  margin: 24px 0 12px; display: flex; align-items: center; gap: 8px;
+}
+
+.test-list { display: grid; gap: 12px; }
+
+.test-item {
+  background: #fff; border-radius: var(--card-radius); padding: 20px;
+  box-shadow: var(--shadow); display: flex; align-items: center; gap: 16px;
+  transition: transform .2s, box-shadow .2s;
+}
+.test-item:hover { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
+
+.test-item .item-emoji { font-size: 40px; flex-shrink: 0; }
+.test-item .item-info { flex: 1; min-width: 0; }
+.test-item .item-title { font-size: 16px; font-weight: 700; color: #2d2252; }
+.test-item .item-desc {
+  font-size: 13px; color: #7b6fa0; margin-top: 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.test-item .item-meta {
+  display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap;
+}
+.meta-badge {
+  display: inline-block; padding: 3px 10px; border-radius: 12px;
+  font-size: 11px; font-weight: 700;
+}
+.meta-badge.type-builtin { background: #e8ddf8; color: var(--purple); }
+.meta-badge.type-custom { background: #d4f5e9; color: #0d7d6c; }
+.meta-badge.type-inactive { background: #ffe0e0; color: #c0395e; }
+.meta-badge.type-count { background: #fff3cd; color: #856404; }
+
+.test-item .item-actions {
+  display: flex; gap: 8px; flex-shrink: 0;
+}
+
+/* === Buttons === */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 10px 18px; border: none; border-radius: 12px;
+  font-family: inherit; font-size: 13px; font-weight: 700;
+  cursor: pointer; transition: all .2s; white-space: nowrap;
+}
+.btn:active { transform: scale(.96); }
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--purple), var(--pink));
+  color: #fff; box-shadow: 0 4px 16px rgba(180,80,200,.2);
+}
+.btn-primary:hover { box-shadow: 0 6px 24px rgba(180,80,200,.3); }
+
+.btn-secondary { background: #f3edff; color: var(--purple); }
+.btn-secondary:hover { background: #e8ddf8; }
+
+.btn-danger { background: #ffe0e0; color: var(--danger); }
+.btn-danger:hover { background: #ffcdd2; }
+
+.btn-success { background: #d4f5e9; color: #0d7d6c; }
+.btn-success:hover { background: #b8ecd8; }
+
+.btn-warning { background: #fff3cd; color: #856404; }
+.btn-warning:hover { background: #ffe9a0; }
+
+.btn-sm { padding: 7px 12px; font-size: 12px; border-radius: 10px; }
+
+.btn-icon {
+  width: 36px; height: 36px; padding: 0; border-radius: 10px;
+  font-size: 16px;
+}
+
+/* Toggle switch */
+.toggle-wrap { display: flex; align-items: center; gap: 6px; }
+.toggle {
+  position: relative; width: 44px; height: 24px; flex-shrink: 0;
+}
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle .slider {
+  position: absolute; inset: 0; background: #ddd; border-radius: 24px;
+  cursor: pointer; transition: .3s;
+}
+.toggle .slider::before {
+  content: ''; position: absolute; width: 18px; height: 18px;
+  left: 3px; bottom: 3px; background: #fff; border-radius: 50%;
+  transition: .3s;
+}
+.toggle input:checked + .slider { background: var(--purple); }
+.toggle input:checked + .slider::before { transform: translateX(20px); }
+
+/* === Form styles === */
+.form-card {
+  background: #fff; border-radius: var(--card-radius); padding: 28px;
+  box-shadow: var(--shadow); margin-bottom: 20px;
+}
+
+.form-group { margin-bottom: 20px; }
+.form-group label {
+  display: block; font-size: 14px; font-weight: 700; color: #4a3878;
+  margin-bottom: 8px;
+}
+.form-group .hint {
+  font-size: 12px; color: #9b8ec4; font-weight: 400; margin-left: 4px;
+}
+
+.form-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+}
+@media (max-width: 500px) { .form-row { grid-template-columns: 1fr; } }
+
+input[type="text"],
+input[type="number"],
+input[type="password"],
+textarea,
+select {
+  width: 100%; padding: 12px 16px;
+  border: 2px solid var(--input-border); border-radius: 12px;
+  font-family: inherit; font-size: 16px; color: #333;
+  background: #faf8ff; transition: border-color .2s, box-shadow .2s;
+  outline: none;
+  -webkit-user-select: text; user-select: text;
+  touch-action: manipulation;
+}
+input:focus, textarea:focus, select:focus {
+  border-color: var(--input-focus);
+  box-shadow: 0 0 0 3px rgba(196,77,255,.1);
+}
+textarea {
+  resize: vertical; min-height: 80px;
+  -webkit-user-select: text; user-select: text;
+  touch-action: auto;
+  -webkit-appearance: none;
+}
+
+/* Color preset swatches */
+.color-presets {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;
+}
+.color-swatch {
+  width: 40px; height: 40px; border-radius: 10px; cursor: pointer;
+  border: 3px solid transparent; transition: all .2s;
+  position: relative;
+}
+.color-swatch:hover { transform: scale(1.1); }
+.color-swatch.selected { border-color: var(--purple); box-shadow: 0 0 0 3px rgba(196,77,255,.2); }
+.color-swatch.selected::after {
+  content: '\2713'; position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 16px; font-weight: 900;
+  text-shadow: 0 1px 3px rgba(0,0,0,.3);
+}
+
+/* Question builder */
+.question-block {
+  background: #faf8ff; border: 2px solid var(--input-border);
+  border-radius: 16px; padding: 20px; margin-bottom: 12px;
+  position: relative;
+}
+.question-block .q-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.question-block .q-number {
+  display: inline-block; padding: 3px 12px; border-radius: 10px;
+  background: linear-gradient(135deg, var(--purple), var(--pink));
+  color: #fff; font-size: 12px; font-weight: 700;
+}
+.choice-row {
+  display: flex; gap: 8px; align-items: center; margin-bottom: 8px;
+}
+.choice-row .type-label {
+  width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 900; color: #fff;
+}
+.type-A { background: linear-gradient(135deg, #ff6b9d, #ff8a65); }
+.type-B { background: linear-gradient(135deg, #7c4dff, #448aff); }
+.type-C { background: linear-gradient(135deg, #26c6da, #66bb6a); }
+.type-D { background: linear-gradient(135deg, #ffc940, #ff8c42); }
+.type-E { background: linear-gradient(135deg, #f093fb, #f5576c); }
+.type-F { background: linear-gradient(135deg, #11998e, #38ef7d); }
+.type-G { background: linear-gradient(135deg, #667eea, #764ba2); }
+.type-H { background: linear-gradient(135deg, #ff9a9e, #fecfef); }
+.type-I { background: linear-gradient(135deg, #a1c4fd, #c2e9fb); }
+.type-J { background: linear-gradient(135deg, #f6d365, #fda085); }
+.type-K { background: linear-gradient(135deg, #84fab0, #8fd3f4); }
+.type-L { background: linear-gradient(135deg, #fa709a, #fee140); }
+.type-M { background: linear-gradient(135deg, #a18cd1, #fbc2eb); }
+.type-N { background: linear-gradient(135deg, #fccb90, #d57eeb); }
+.type-O { background: linear-gradient(135deg, #e0c3fc, #8ec5fc); }
+.type-P { background: linear-gradient(135deg, #f9748f, #19b5fe); }
+.type-Q { background: linear-gradient(135deg, #43e97b, #38f9d7); }
+.type-R { background: linear-gradient(135deg, #fa71cd, #c471f5); }
+.type-S { background: linear-gradient(135deg, #48c6ef, #6f86d6); }
+.type-T { background: linear-gradient(135deg, #feada6, #f5efef); }
+.choice-row input { flex: 1; }
+
+/* Result type blocks */
+.result-block {
+  border: 2px solid var(--input-border); border-radius: 16px;
+  padding: 20px; margin-bottom: 12px; background: #faf8ff;
+}
+.result-block .result-header {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
+}
+
+/* Preview card */
+.preview-area {
+  background: #faf8ff; border-radius: var(--card-radius);
+  padding: 24px; margin-top: 16px; text-align: center;
+}
+.preview-card {
+  display: inline-block; border-radius: var(--card-radius); padding: 28px 22px;
+  color: #fff; text-align: left; max-width: 320px; width: 100%;
+  box-shadow: var(--shadow); position: relative; overflow: hidden;
+}
+.preview-card::after {
+  content: ''; position: absolute; inset: 0; border-radius: var(--card-radius);
+  background: linear-gradient(135deg, rgba(255,255,255,.18) 0%, transparent 60%);
+  pointer-events: none;
+}
+.preview-card .emoji { font-size: 48px; display: block; margin-bottom: 12px; }
+.preview-card .title { font-size: 18px; font-weight: 700; line-height: 1.4; }
+.preview-card .desc { margin-top: 6px; font-size: 13px; opacity: .88; line-height: 1.5; }
+.preview-card .badge {
+  display: inline-block; margin-top: 12px; padding: 4px 14px;
+  background: rgba(255,255,255,.25); border-radius: 20px;
+  font-size: 12px; font-weight: 700; backdrop-filter: blur(4px);
+}
+
+/* AI section */
+.ai-mode-tabs {
+  display: flex; gap: 8px; margin-bottom: 16px;
+}
+.ai-mode-btn {
+  flex: 1; padding: 10px; border: 2px solid var(--input-border);
+  border-radius: 12px; background: #faf8ff; cursor: pointer;
+  font-family: inherit; font-size: 13px; font-weight: 700;
+  color: #9b8ec4; transition: all .2s; text-align: center;
+}
+.ai-mode-btn.active {
+  border-color: var(--purple); background: #f3edff; color: var(--purple);
+}
+
+.ai-panel { display: none; }
+.ai-panel.active { display: block; }
+
+/* Toolbar */
+.toolbar {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px;
+}
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(80px);
+  background: #333; color: #fff; padding: 14px 28px; border-radius: 14px;
+  font-size: 14px; font-weight: 600; z-index: 100;
+  box-shadow: 0 8px 32px rgba(0,0,0,.2);
+  transition: transform .35s cubic-bezier(.4,0,.2,1), opacity .35s;
+  opacity: 0; pointer-events: none;
+}
+.toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+/* Modal */
+.modal-overlay {
+  display: none; position: fixed; inset: 0; z-index: 50;
+  background: rgba(0,0,0,.4); backdrop-filter: blur(4px);
+  justify-content: center; align-items: center; padding: 20px;
+}
+.modal-overlay.active { display: flex; }
+.modal {
+  background: #fff; border-radius: var(--card-radius); padding: 32px;
+  max-width: 500px; width: 100%; max-height: 80vh; overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,.2); animation: fadeIn .3s ease;
+}
+.modal h3 {
+  font-size: 18px; font-weight: 700; color: #4a3878; margin-bottom: 16px;
+}
+.modal-actions {
+  display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .test-item { flex-direction: column; text-align: center; }
+  .test-item .item-meta { justify-content: center; }
+  .test-item .item-actions { justify-content: center; }
+  .tabs { flex-wrap: wrap; }
+  .tab-btn { min-width: calc(50% - 8px); }
+  .form-card { padding: 20px; }
+}
+
+/* Hidden file input */
+.hidden-input { display: none; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d4c8e8; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #b8a8d8; }
+</style>
+</head>
+<body>
+
+<div class="bg-blobs"><span></span><span></span><span></span></div>
+
+<div class="container">
+  <!-- Header -->
+  <div class="admin-header">
+    <h1>관리자 페이지</h1>
+    <p>심리테스트를 관리하고 새로운 테스트를 만들어보세요</p>
+    <a href="index.html" class="nav-link">&#8592; 메인 페이지로 돌아가기</a>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('list')">테스트 목록</button>
+    <button class="tab-btn" onclick="switchTab('create')">새 테스트 만들기</button>
+    <button class="tab-btn" onclick="switchTab('ai')">AI 자동 생성</button>
+    <button class="tab-btn" onclick="switchTab('io')">내보내기/가져오기</button>
+  </div>
+
+  <!-- ========== TAB: Test List ========== -->
+  <div id="tab-list" class="tab-panel active">
+    <div class="section-title">등록된 테스트</div>
+    <div class="test-list" id="test-list"></div>
+  </div>
+
+  <!-- ========== TAB: Create Test ========== -->
+  <div id="tab-create" class="tab-panel">
+    <div class="section-title">새 테스트 만들기</div>
+
+    <!-- Basic Info -->
+    <div class="form-card">
+      <h3 style="font-size:16px;font-weight:700;color:#4a3878;margin-bottom:16px;">기본 정보</h3>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>이모지 <span class="hint">(하나만 입력)</span></label>
+          <input type="text" id="f-emoji" placeholder="예: 🎯" maxlength="4">
+        </div>
+        <div class="form-group">
+          <label>배지 텍스트</label>
+          <input type="text" id="f-badge" placeholder="예: 성격, 연애, 힐링">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>테스트 제목</label>
+        <input type="text" id="f-title" placeholder="예: 나의 리더십 유형 테스트">
+      </div>
+
+      <div class="form-group">
+        <label>테스트 설명</label>
+        <textarea id="f-desc" rows="2" placeholder="예: 나는 어떤 스타일의 리더일까? 숨겨진 리더십을 알아보세요!"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>카드 색상</label>
+        <div class="color-presets" id="color-presets"></div>
+      </div>
+
+      <div class="form-group">
+        <label>질문 개수 <span class="hint">(2~20)</span></label>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <input type="range" id="f-qcount" min="2" max="20" value="4" style="flex:1;" oninput="updateQuestionCount(this.value)">
+          <span id="f-qcount-display" style="font-weight:700;color:var(--purple);font-size:18px;">4</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>결과 유형 수 <span class="hint">(2~20)</span></label>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <input type="range" id="f-rcount" min="2" max="20" value="4" style="flex:1;" oninput="updateResultCount(this.value)">
+          <span id="f-rcount-display" style="font-weight:700;color:var(--purple);font-size:18px;">4</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Questions -->
+    <div class="form-card">
+      <h3 style="font-size:16px;font-weight:700;color:#4a3878;margin-bottom:16px;">질문 설정</h3>
+      <div id="questions-builder"></div>
+    </div>
+
+    <!-- Results -->
+    <div class="form-card">
+      <h3 id="results-heading" style="font-size:16px;font-weight:700;color:#4a3878;margin-bottom:16px;">결과 유형</h3>
+      <div id="results-builder"></div>
+    </div>
+
+    <!-- Preview & Save -->
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn btn-secondary" onclick="previewCard()" style="flex:1;">미리보기</button>
+      <button class="btn btn-primary" onclick="saveTest()" style="flex:1;">저장하기</button>
+    </div>
+
+    <div class="preview-area" id="preview-area" style="display:none;">
+      <p style="font-size:13px;color:#9b8ec4;margin-bottom:12px;font-weight:600;">카드 미리보기</p>
+      <div id="preview-container"></div>
+    </div>
+  </div>
+
+  <!-- ========== TAB: AI Generation ========== -->
+  <div id="tab-ai" class="tab-panel">
+    <div class="section-title">AI로 테스트 자동 생성</div>
+
+    <div class="form-card">
+      <div class="form-group">
+        <label>테스트 주제 / 테마 설명</label>
+        <textarea id="ai-topic" rows="3" placeholder="예: 직장에서의 커뮤니케이션 스타일, 여행 스타일, 음식 취향 등 원하는 주제를 자유롭게 적어주세요."></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>질문 개수 <span class="hint">(2~20)</span></label>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <input type="range" id="ai-qcount" min="2" max="20" value="4" style="flex:1;" oninput="document.getElementById('ai-qcount-display').textContent=this.value">
+          <span id="ai-qcount-display" style="font-weight:700;color:var(--purple);font-size:18px;">4</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>결과 유형 수 <span class="hint">(2~20)</span></label>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <input type="range" id="ai-rcount" min="2" max="20" value="4" style="flex:1;" oninput="document.getElementById('ai-rcount-display').textContent=this.value">
+          <span id="ai-rcount-display" style="font-weight:700;color:var(--purple);font-size:18px;">4</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI Mode Tabs -->
+    <div class="ai-mode-tabs">
+      <button class="ai-mode-btn active" onclick="switchAiMode('prompt')">프롬프트 복사</button>
+      <button class="ai-mode-btn" onclick="switchAiMode('api')">API Key 모드</button>
+    </div>
+
+    <!-- Prompt Copy Mode -->
+    <div id="ai-panel-prompt" class="ai-panel active">
+      <div class="form-card">
+        <p style="font-size:13px;color:#7b6fa0;line-height:1.7;margin-bottom:16px;">
+          아래 버튼을 클릭하면 AI(ChatGPT, Claude 등)에 붙여넣을 수 있는 프롬프트가 클립보드에 복사됩니다.
+          AI의 응답(JSON)을 아래 텍스트 영역에 붙여넣으면 자동으로 폼이 채워집니다.
+        </p>
+        <button class="btn btn-primary" onclick="generatePrompt()" style="width:100%;margin-bottom:16px;">
+          프롬프트 생성 & 복사
+        </button>
+        <div class="form-group">
+          <label>AI 응답 JSON 붙여넣기</label>
+          <textarea id="ai-json-paste" rows="6" placeholder='AI가 생성한 JSON을 여기에 붙여넣으세요...'></textarea>
+        </div>
+        <button class="btn btn-success" onclick="parseAiJson()" style="width:100%;">
+          JSON 파싱 & 폼 채우기
+        </button>
+      </div>
+    </div>
+
+    <!-- API Key Mode -->
+    <div id="ai-panel-api" class="ai-panel">
+      <div class="form-card">
+        <div class="form-group">
+          <label>Anthropic Claude API Key</label>
+          <input type="password" id="ai-api-key" placeholder="sk-ant-...">
+          <p style="font-size:11px;color:#9b8ec4;margin-top:6px;">
+            API Key는 브라우저에서 직접 호출하며 서버에 저장되지 않습니다.
+          </p>
+        </div>
+        <button class="btn btn-primary" onclick="callAiApi()" id="ai-api-btn" style="width:100%;">
+          AI로 자동 생성
+        </button>
+        <div id="ai-api-status" style="margin-top:12px;font-size:13px;color:#9b8ec4;text-align:center;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== TAB: Import/Export ========== -->
+  <div id="tab-io" class="tab-panel">
+    <div class="section-title">데이터 내보내기 / 가져오기</div>
+
+    <div class="form-card">
+      <h3 style="font-size:16px;font-weight:700;color:#4a3878;margin-bottom:8px;">내보내기</h3>
+      <p style="font-size:13px;color:#7b6fa0;margin-bottom:16px;line-height:1.6;">
+        커스텀 테스트를 JSON 파일로 내보냅니다. 백업이나 다른 기기로 옮길 때 사용하세요.
+      </p>
+      <button class="btn btn-primary" onclick="exportTests()" style="width:100%;">
+        내보내기 (JSON 다운로드)
+      </button>
+    </div>
+
+    <div class="form-card">
+      <h3 style="font-size:16px;font-weight:700;color:#4a3878;margin-bottom:8px;">가져오기</h3>
+      <p style="font-size:13px;color:#7b6fa0;margin-bottom:16px;line-height:1.6;">
+        JSON 파일을 선택하여 커스텀 테스트를 추가합니다. 기존 테스트는 유지됩니다.
+      </p>
+      <input type="file" id="import-file" accept=".json" class="hidden-input" onchange="importTests(event)">
+      <button class="btn btn-success" onclick="document.getElementById('import-file').click()" style="width:100%;">
+        가져오기 (JSON 파일 선택)
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Delete Confirm Modal -->
+<div class="modal-overlay" id="modal-delete">
+  <div class="modal">
+    <h3>테스트 삭제</h3>
+    <p style="color:#7b6fa0;line-height:1.6;" id="modal-delete-msg">이 테스트를 정말 삭제하시겠습니까?</p>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modal-delete')">취소</button>
+      <button class="btn btn-danger" id="modal-delete-confirm">삭제</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="modal-edit">
+  <div class="modal" style="max-width:600px;">
+    <h3>테스트 수정</h3>
+    <div id="edit-form-content"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('modal-edit')">취소</button>
+      <button class="btn btn-primary" id="modal-edit-save">저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ──────────────────────────────────────────────
+//  BUILT-IN TESTS (read-only mirror from index.html)
+// ──────────────────────────────────────────────
+const BUILTIN_TESTS = [
+  {
+    id: 'love', emoji: '💘', title: '나의 연애 유형 테스트',
+    desc: '연애할 때 나는 어떤 스타일일까? 숨겨진 연애 DNA를 알아보세요!',
+    cardClass: 'card-love', badge: '연애',
+    questions: [
+      { text: '좋아하는 사람이 생겼을 때, 나의 첫 반응은?', choices: [
+        { text: '바로 연락처를 물어본다. 행동이 빨라야지!', type: 'A' },
+        { text: '멀리서 조용히 관찰하며 정보를 수집한다', type: 'B' },
+        { text: '친구들에게 먼저 알리고 작전을 짠다', type: 'C' },
+        { text: '자연스럽게 마주칠 수 있는 상황을 만든다', type: 'D' }
+      ]},
+      { text: '연인과의 데이트 코스를 정할 때 나는?', choices: [
+        { text: '서프라이즈! 내가 완벽하게 계획한다', type: 'A' },
+        { text: '상대방이 원하는 것에 맞춰준다', type: 'B' },
+        { text: '같이 맛집 리스트 보면서 고른다', type: 'C' },
+        { text: '그날 기분에 따라 즉흥적으로 결정한다', type: 'D' }
+      ]},
+      { text: '연인이 갑자기 기분이 안 좋아 보일 때?', choices: [
+        { text: '"왜 그래? 무슨 일이야?" 바로 직접적으로 물어본다', type: 'A' },
+        { text: '말 없이 따뜻한 음료를 건네고 기다려준다', type: 'B' },
+        { text: '웃긴 영상이나 밈을 보내서 웃게 해준다', type: 'C' },
+        { text: '조용히 옆에 있어주며 손을 잡아준다', type: 'D' }
+      ]},
+      { text: '이상적인 프로포즈 장소는?', choices: [
+        { text: '도시 전망이 보이는 루프탑 레스토랑', type: 'A' },
+        { text: '둘만의 추억이 있는 조용한 장소', type: 'B' },
+        { text: '친구들과 가족이 함께하는 파티에서', type: 'C' },
+        { text: '여행 중 아름다운 자연 속에서', type: 'D' }
+      ]}
+    ],
+    results: {
+      A: { emoji: '🔥', type: '열정적인 사랑꾼', desc: '당신은 사랑 앞에서 누구보다 적극적이고 열정적인 타입이에요.', tags: ['#적극적', '#로맨티스트', '#리더형연인', '#열정가득'] },
+      B: { emoji: '🌙', type: '조용한 깊은 사랑형', desc: '당신은 말보다 행동으로 사랑을 표현하는 깊은 사랑의 소유자예요.', tags: ['#깊은사랑', '#행동파', '#든든한연인', '#관찰력'] },
+      C: { emoji: '🎉', type: '함께하는 사랑 메이커', desc: '당신은 사랑도 우정도 모두 소중히 여기는 소셜 러버!', tags: ['#소셜러버', '#유머감각', '#분위기메이커', '#함께하는사랑'] },
+      D: { emoji: '🦋', type: '감성적인 자유로운 영혼', desc: '당신은 감성적이면서도 자유로운 영혼의 소유자예요.', tags: ['#자유영혼', '#감성러버', '#낭만주의', '#즉흥설렘'] }
+    }
+  },
+  {
+    id: 'stress', emoji: '🧘', title: '나의 스트레스 해소법 테스트',
+    desc: '스트레스 받을 때 나에게 딱 맞는 힐링 방법은? 지금 확인하세요!',
+    cardClass: 'card-stress', badge: '힐링',
+    questions: [
+      { text: '월요일 아침, 출근길에 비가 쏟아진다. 이때 드는 생각은?', choices: [
+        { text: '"에잇, 퇴근하면 맛있는 거 먹어야지"', type: 'A' },
+        { text: '"비 오는 날 듣기 좋은 플레이리스트 틀자"', type: 'B' },
+        { text: '"친구한테 카톡해서 오늘 얼마나 힘든지 공유해야지"', type: 'C' },
+        { text: '"오늘 퇴근하고 운동 빡세게 해야겠다"', type: 'D' }
+      ]},
+      { text: '상사에게 억울한 지적을 받았을 때 나는?', choices: [
+        { text: '점심시간에 좋아하는 디저트를 사 먹는다', type: 'A' },
+        { text: '이어폰 꽂고 음악에 빠져든다', type: 'B' },
+        { text: '동료에게 찾아가서 오늘 있었던 일을 털어놓는다', type: 'C' },
+        { text: '화장실에 가서 스트레칭을 하거나 깊게 심호흡한다', type: 'D' }
+      ]},
+      { text: '아무 계획 없는 주말, 스트레스 해소를 위해 하고 싶은 것은?', choices: [
+        { text: '밀린 드라마 정주행하며 배달음식 시키기', type: 'A' },
+        { text: '감성 카페에서 혼자 책 읽거나 그림 그리기', type: 'B' },
+        { text: '친구들 불러모아서 수다 파티', type: 'C' },
+        { text: '등산, 수영, 자전거 등 몸을 움직이는 활동', type: 'D' }
+      ]},
+      { text: '잠이 안 올 때 내가 가장 많이 하는 것은?', choices: [
+        { text: 'ASMR이나 먹방 보면서 야식 고민하기', type: 'A' },
+        { text: '좋아하는 음악 듣거나 일기 쓰기', type: 'B' },
+        { text: '친구에게 전화해서 수다 떨기', type: 'C' },
+        { text: '가벼운 요가나 명상 앱 켜기', type: 'D' }
+      ]}
+    ],
+    results: {
+      A: { emoji: '🍰', type: '미식 힐링형', desc: '당신의 스트레스 해소 키워드는 바로 "맛있는 것"!', tags: ['#먹보힐링', '#디저트러버', '#미식가', '#먹방치료'] },
+      B: { emoji: '🎨', type: '감성 충전형', desc: '당신은 음악, 예술, 자연 같은 감성적인 것들로 마음을 치유하는 타입이에요.', tags: ['#감성힐링', '#예술혼', '#혼자만의시간', '#음악치료'] },
+      C: { emoji: '💬', type: '소통 치유형', desc: '당신은 사람들과의 대화를 통해 스트레스를 해소하는 타입이에요!', tags: ['#수다치료', '#공감능력', '#소통왕', '#인싸힐링'] },
+      D: { emoji: '🏃', type: '활동 에너지형', desc: '당신은 몸을 움직여야 스트레스가 풀리는 활동형이에요!', tags: ['#운동치료', '#에너지발산', '#액티브', '#건강한힐링'] }
+    }
+  },
+  {
+    id: 'personality', emoji: '🎭', title: '나의 숨겨진 성격 테스트',
+    desc: '남들은 모르는 나의 진짜 성격! 내 안에 숨겨진 또 다른 나를 찾아보세요.',
+    cardClass: 'card-personality', badge: '성격',
+    questions: [
+      { text: '단체 카톡방에 누군가 의견을 물어봤을 때 나는?', choices: [
+        { text: '제일 먼저 의견을 내고 분위기를 이끈다', type: 'A' },
+        { text: '다른 사람들 의견을 먼저 보고 신중하게 답한다', type: 'B' },
+        { text: '재미있는 답변으로 분위기를 풀어준다', type: 'C' },
+        { text: '조용히 읽고만 있다가 나중에 1:1로 말한다', type: 'D' }
+      ]},
+      { text: '갑자기 여행을 가게 되었다! 나의 준비 스타일은?', choices: [
+        { text: '시간대별 완벽한 여행 계획표를 만든다', type: 'A' },
+        { text: '숙소와 교통편만 정하고 나머지는 현지에서', type: 'B' },
+        { text: '일행들의 의견을 모아서 모두가 만족할 코스를 짠다', type: 'C' },
+        { text: '계획? 그런 건 없다. 발길 닿는 대로 간다', type: 'D' }
+      ]},
+      { text: '친구가 심각한 고민을 이야기할 때 나는?', choices: [
+        { text: '구체적인 해결 방법과 조언을 제시한다', type: 'A' },
+        { text: '차분히 경청하고 공감해준다', type: 'B' },
+        { text: '분위기가 무거워지지 않게 적절히 위로와 유머를 섞는다', type: 'C' },
+        { text: '말없이 곁에 있어주고, 필요하면 혼자 생각할 시간도 준다', type: 'D' }
+      ]},
+      { text: '내가 가장 에너지를 얻는 순간은?', choices: [
+        { text: '목표를 달성했을 때 느끼는 성취감', type: 'A' },
+        { text: '새로운 지식이나 통찰을 얻었을 때', type: 'B' },
+        { text: '사랑하는 사람들과 웃고 떠들 때', type: 'C' },
+        { text: '조용한 공간에서 나만의 시간을 보낼 때', type: 'D' }
+      ]}
+    ],
+    results: {
+      A: { emoji: '👑', type: '타고난 리더, 카리스마 행동가', desc: '당신의 숨겨진 성격은 바로 "왕의 기질"!', tags: ['#리더기질', '#추진력갑', '#카리스마', '#완벽주의자'] },
+      B: { emoji: '🦉', type: '깊은 사색가, 지혜로운 현자', desc: '당신의 숨겨진 성격은 "깊이 있는 사색가"!', tags: ['#사색가', '#신중함', '#지혜로운', '#깊은내면'] },
+      C: { emoji: '☀️', type: '인간 비타민, 따뜻한 조화자', desc: '당신의 숨겨진 성격은 "사람들의 햇살"!', tags: ['#인간비타민', '#분위기메이커', '#배려왕', '#조화로운'] },
+      D: { emoji: '🌌', type: '신비로운 독립가, 자유로운 예술가', desc: '당신의 숨겨진 성격은 "신비로운 독립가"!', tags: ['#독립적', '#자유영혼', '#예술가기질', '#신비로운'] }
+    }
+  }
+];
+
+// ──────────────────────────────────────────────
+//  COLOR PRESETS
+// ──────────────────────────────────────────────
+const COLOR_PRESETS = [
+  { name: 'card-love', gradient: 'linear-gradient(135deg, #ff6b9d, #ff8a65)', label: '핑크-오렌지' },
+  { name: 'card-stress', gradient: 'linear-gradient(135deg, #7c4dff, #448aff)', label: '퍼플-블루' },
+  { name: 'card-personality', gradient: 'linear-gradient(135deg, #26c6da, #66bb6a)', label: '민트-그린' },
+  { name: 'card-sunset', gradient: 'linear-gradient(135deg, #ff8c42, #ffc940)', label: '오렌지-옐로' },
+  { name: 'card-ocean', gradient: 'linear-gradient(135deg, #4d79ff, #36d6b5)', label: '블루-민트' },
+  { name: 'card-rose', gradient: 'linear-gradient(135deg, #f093fb, #f5576c)', label: '로즈-핑크' },
+  { name: 'card-forest', gradient: 'linear-gradient(135deg, #11998e, #38ef7d)', label: '포레스트' },
+  { name: 'card-night', gradient: 'linear-gradient(135deg, #667eea, #764ba2)', label: '나이트' },
+  { name: 'card-coral', gradient: 'linear-gradient(135deg, #ff9a9e, #fecfef)', label: '코랄' },
+  { name: 'card-sky', gradient: 'linear-gradient(135deg, #a1c4fd, #c2e9fb)', label: '스카이' },
+];
+
+let selectedColor = COLOR_PRESETS[0].name;
+let questionCount = 4;
+let resultTypeCount = 4;
+let editingTestId = null;
+
+function getTypeLabels(count) {
+  return Array.from({length: count}, (_, i) => String.fromCharCode(65 + i));
+}
+
+function updateResultCount(val) {
+  resultTypeCount = parseInt(val);
+  document.getElementById('f-rcount-display').textContent = val;
+  renderQuestionsBuilder();
+  renderResultsBuilder();
+}
+
+// ──────────────────────────────────────────────
+//  SERVER API STORAGE
+// ──────────────────────────────────────────────
+let _cachedCustomTests = [];
+let _cachedInactive = [];
+
+async function getInactiveTests() {
+  try {
+    const res = await fetch('/api/inactive');
+    _cachedInactive = await res.json();
+  } catch { _cachedInactive = []; }
+  return _cachedInactive;
+}
+function getInactiveTestsSync() { return _cachedInactive; }
+
+async function setInactiveTests(arr) {
+  _cachedInactive = arr;
+  await fetch('/api/inactive', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(arr)
+  }).catch(() => {});
+}
+
+async function getCustomTests() {
+  try {
+    const res = await fetch('/api/tests');
+    _cachedCustomTests = await res.json();
+  } catch { _cachedCustomTests = []; }
+  return _cachedCustomTests;
+}
+function getCustomTestsSync() { return _cachedCustomTests; }
+
+async function setCustomTests(arr) {
+  // Save each test individually via API
+  for (const test of arr) {
+    await fetch('/api/tests', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(test)
+    }).catch(() => {});
+  }
+  _cachedCustomTests = arr;
+}
+
+async function saveOneTest(test) {
+  await fetch('/api/tests', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(test)
+  }).catch(() => {});
+  await getCustomTests(); // refresh cache
+}
+
+async function deleteOneTest(id) {
+  await fetch('/api/tests/' + encodeURIComponent(id), {
+    method: 'DELETE'
+  }).catch(() => {});
+  await getCustomTests(); // refresh cache
+}
+
+function getAllTests() {
+  return [...BUILTIN_TESTS, ..._cachedCustomTests];
+}
+
+// ──────────────────────────────────────────────
+//  TOAST
+// ──────────────────────────────────────────────
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ──────────────────────────────────────────────
+//  MODAL
+// ──────────────────────────────────────────────
+function openModal(id) { document.getElementById(id).classList.add('active'); }
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('active'); });
+});
+
+// ──────────────────────────────────────────────
+//  TAB SWITCHING
+// ──────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+    btn.classList.toggle('active', btn.textContent.includes(
+      name === 'list' ? '목록' : name === 'create' ? '만들기' : name === 'ai' ? 'AI' : '내보내기'
+    ));
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+function switchAiMode(mode) {
+  document.querySelectorAll('.ai-mode-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.ai-panel').forEach(p => p.classList.remove('active'));
+  if (mode === 'prompt') {
+    document.querySelector('.ai-mode-btn:first-child').classList.add('active');
+    document.getElementById('ai-panel-prompt').classList.add('active');
+  } else {
+    document.querySelector('.ai-mode-btn:last-child').classList.add('active');
+    document.getElementById('ai-panel-api').classList.add('active');
+  }
+}
+
+// ──────────────────────────────────────────────
+//  RENDER TEST LIST
+// ──────────────────────────────────────────────
+async function renderTestList() {
+  const list = document.getElementById('test-list');
+  await getCustomTests();
+  await getInactiveTests();
+  const all = getAllTests();
+  const inactive = _cachedInactive;
+
+  if (all.length === 0) {
+    list.innerHTML = '<p style="text-align:center;color:#9b8ec4;padding:40px 0;">등록된 테스트가 없습니다.</p>';
+    return;
+  }
+
+  list.innerHTML = all.map(t => {
+    const isBuiltin = BUILTIN_TESTS.some(b => b.id === t.id);
+    const isActive = !inactive.includes(t.id);
+
+    return `
+      <div class="test-item">
+        <div class="item-emoji">${t.emoji}</div>
+        <div class="item-info">
+          <div class="item-title">${t.title}</div>
+          <div class="item-desc">${t.desc}</div>
+          <div class="item-meta">
+            <span class="meta-badge ${isBuiltin ? 'type-builtin' : 'type-custom'}">${isBuiltin ? '기본' : '커스텀'}</span>
+            <span class="meta-badge type-count">${t.questions.length}문항</span>
+            <span class="meta-badge" style="background:#f3edff;color:var(--purple);">${t.badge}</span>
+            ${!isActive ? '<span class="meta-badge type-inactive">비활성</span>' : ''}
+          </div>
+        </div>
+        <div class="item-actions">
+          <label class="toggle" title="${isActive ? '활성' : '비활성'}">
+            <input type="checkbox" ${isActive ? 'checked' : ''} onchange="toggleTest('${t.id}', this.checked)">
+            <span class="slider"></span>
+          </label>
+          <button class="btn btn-sm btn-secondary btn-icon" onclick="openEditModal('${t.id}')" title="수정">&#9998;</button>
+          ${!isBuiltin ? `<button class="btn btn-sm btn-danger btn-icon" onclick="confirmDelete('${t.id}')" title="삭제">&#10005;</button>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ──────────────────────────────────────────────
+//  TOGGLE TEST ACTIVE/INACTIVE
+// ──────────────────────────────────────────────
+async function toggleTest(id, active) {
+  let inactive = [..._cachedInactive];
+  if (active) {
+    inactive = inactive.filter(i => i !== id);
+  } else {
+    if (!inactive.includes(id)) inactive.push(id);
+  }
+  await setInactiveTests(inactive);
+  showToast(active ? '테스트가 활성화되었습니다.' : '테스트가 비활성화되었습니다.');
+}
+
+// ──────────────────────────────────────────────
+//  DELETE TEST
+// ──────────────────────────────────────────────
+function confirmDelete(id) {
+  const test = _cachedCustomTests.find(t => t.id === id);
+  if (!test) return;
+
+  document.getElementById('modal-delete-msg').textContent =
+    `"${test.title}" 테스트를 정말 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`;
+
+  const confirmBtn = document.getElementById('modal-delete-confirm');
+  confirmBtn.onclick = async () => {
+    await deleteOneTest(id);
+    let inactive = _cachedInactive.filter(i => i !== id);
+    await setInactiveTests(inactive);
+    closeModal('modal-delete');
+    await renderTestList();
+    showToast('테스트가 삭제되었습니다.');
+  };
+  openModal('modal-delete');
+}
+
+// ──────────────────────────────────────────────
+//  EDIT TEST (Quick Edit Modal)
+// ──────────────────────────────────────────────
+function openEditModal(id) {
+  const all = getAllTests();
+  const test = all.find(t => t.id === id);
+  if (!test) return;
+
+  const isBuiltin = BUILTIN_TESTS.some(b => b.id === id);
+
+  const content = document.getElementById('edit-form-content');
+  content.innerHTML = `
+    <div class="form-group">
+      <label>이모지</label>
+      <input type="text" id="edit-emoji" value="${test.emoji}" maxlength="4" ${isBuiltin ? 'disabled' : ''}>
+    </div>
+    <div class="form-group">
+      <label>제목</label>
+      <input type="text" id="edit-title" value="${escapeHtml(test.title)}" ${isBuiltin ? 'disabled' : ''}>
+    </div>
+    <div class="form-group">
+      <label>설명</label>
+      <textarea id="edit-desc" rows="2" ${isBuiltin ? 'disabled' : ''}>${escapeHtml(test.desc)}</textarea>
+    </div>
+    <div class="form-group">
+      <label>배지</label>
+      <input type="text" id="edit-badge" value="${escapeHtml(test.badge)}" ${isBuiltin ? 'disabled' : ''}>
+    </div>
+    ${isBuiltin ? '<p style="font-size:12px;color:var(--danger);margin-top:8px;">기본 테스트는 수정할 수 없습니다.</p>' : ''}
+  `;
+
+  const saveBtn = document.getElementById('modal-edit-save');
+  if (isBuiltin) {
+    saveBtn.style.display = 'none';
+  } else {
+    saveBtn.style.display = '';
+    saveBtn.onclick = async () => {
+      const tests = await getCustomTests();
+      const idx = tests.findIndex(t => t.id === id);
+      if (idx === -1) return;
+
+      tests[idx].emoji = document.getElementById('edit-emoji').value || tests[idx].emoji;
+      tests[idx].title = document.getElementById('edit-title').value || tests[idx].title;
+      tests[idx].desc = document.getElementById('edit-desc').value || tests[idx].desc;
+      tests[idx].badge = document.getElementById('edit-badge').value || tests[idx].badge;
+
+      await setCustomTests(tests);
+      closeModal('modal-edit');
+      await renderTestList();
+      showToast('테스트가 수정되었습니다.');
+    };
+  }
+  openModal('modal-edit');
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// ──────────────────────────────────────────────
+//  COLOR PRESETS RENDERING
+// ──────────────────────────────────────────────
+function renderColorPresets() {
+  const container = document.getElementById('color-presets');
+  container.innerHTML = COLOR_PRESETS.map(c => `
+    <div class="color-swatch ${c.name === selectedColor ? 'selected' : ''}"
+         style="background: ${c.gradient};"
+         title="${c.label}"
+         onclick="selectColor('${c.name}')">
+    </div>
+  `).join('');
+}
+
+function selectColor(name) {
+  selectedColor = name;
+  renderColorPresets();
+}
+
+// ──────────────────────────────────────────────
+//  QUESTION BUILDER
+// ──────────────────────────────────────────────
+function updateQuestionCount(val) {
+  questionCount = parseInt(val);
+  document.getElementById('f-qcount-display').textContent = val;
+  renderQuestionsBuilder();
+}
+
+function renderQuestionsBuilder() {
+  const container = document.getElementById('questions-builder');
+  const types = getTypeLabels(resultTypeCount);
+
+  let html = '';
+  for (let i = 0; i < questionCount; i++) {
+    const existingQ = container.querySelector(`[data-q-index="${i}"]`);
+    const qText = existingQ ? existingQ.querySelector('.q-text-input').value : '';
+    const choices = [];
+    for (let j = 0; j < types.length; j++) {
+      const existing = existingQ ? existingQ.querySelector(`.choice-input-${j}`) : null;
+      choices.push(existing ? existing.value : '');
+    }
+
+    html += `
+      <div class="question-block" data-q-index="${i}">
+        <div class="q-header">
+          <span class="q-number">Q${i + 1}</span>
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <input type="text" class="q-text-input" placeholder="질문을 입력하세요" value="${escapeHtml(qText)}">
+        </div>
+        ${types.map((t, j) => `
+          <div class="choice-row">
+            <div class="type-label type-${t}">${t}</div>
+            <input type="text" class="choice-input-${j}" placeholder="${t} 유형 선택지를 입력하세요" value="${escapeHtml(choices[j])}">
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+  container.innerHTML = html;
+}
+
+// ──────────────────────────────────────────────
+//  RESULTS BUILDER
+// ──────────────────────────────────────────────
+function renderResultsBuilder() {
+  const container = document.getElementById('results-builder');
+  const types = getTypeLabels(resultTypeCount);
+
+  // Update the heading
+  const heading = document.getElementById('results-heading');
+  if (heading) {
+    heading.textContent = '결과 유형 (' + types.join('/') + ')';
+  }
+
+  container.innerHTML = types.map(t => `
+    <div class="result-block" data-result-type="${t}">
+      <div class="result-header">
+        <div class="type-label type-${t}" style="width:32px;height:32px;font-size:14px;">${t}</div>
+        <span style="font-weight:700;color:#4a3878;">${t} 유형</span>
+      </div>
+      <div class="form-row" style="margin-bottom:12px;">
+        <div class="form-group" style="margin-bottom:0;">
+          <label style="font-size:12px;">이모지</label>
+          <input type="text" class="r-emoji" placeholder="예: 🔥" maxlength="4">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label style="font-size:12px;">유형 이름</label>
+          <input type="text" class="r-type" placeholder="예: 열정적인 리더">
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label style="font-size:12px;">설명</label>
+        <textarea class="r-desc" rows="2" placeholder="이 유형에 대한 설명을 입력하세요"></textarea>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label style="font-size:12px;">태그 <span class="hint">(쉼표로 구분)</span></label>
+        <input type="text" class="r-tags" placeholder="예: #적극적, #리더, #열정가득">
+      </div>
+    </div>
+  `).join('');
+}
+
+// ──────────────────────────────────────────────
+//  PREVIEW CARD
+// ──────────────────────────────────────────────
+function previewCard() {
+  const emoji = document.getElementById('f-emoji').value || '🎯';
+  const title = document.getElementById('f-title').value || '테스트 제목';
+  const desc = document.getElementById('f-desc').value || '테스트 설명이 여기에 표시됩니다.';
+  const badge = document.getElementById('f-badge').value || '카테고리';
+  const color = COLOR_PRESETS.find(c => c.name === selectedColor);
+
+  const area = document.getElementById('preview-area');
+  area.style.display = 'block';
+
+  document.getElementById('preview-container').innerHTML = `
+    <div class="preview-card" style="background: ${color.gradient};">
+      <span class="emoji">${emoji}</span>
+      <div class="title">${escapeHtml(title)}</div>
+      <div class="desc">${escapeHtml(desc)}</div>
+      <span class="badge">${escapeHtml(badge)} · ${questionCount}문항</span>
+    </div>
+  `;
+
+  area.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// ──────────────────────────────────────────────
+//  SAVE TEST
+// ──────────────────────────────────────────────
+function collectFormData() {
+  const emoji = document.getElementById('f-emoji').value.trim();
+  const title = document.getElementById('f-title').value.trim();
+  const desc = document.getElementById('f-desc').value.trim();
+  const badge = document.getElementById('f-badge').value.trim();
+
+  if (!emoji || !title || !desc || !badge) {
+    showToast('기본 정보를 모두 입력해주세요.');
+    return null;
+  }
+
+  // Collect questions
+  const questions = [];
+  const types = getTypeLabels(resultTypeCount);
+  const qBlocks = document.querySelectorAll('#questions-builder .question-block');
+
+  for (let i = 0; i < qBlocks.length; i++) {
+    const qText = qBlocks[i].querySelector('.q-text-input').value.trim();
+    if (!qText) {
+      showToast(`Q${i + 1}의 질문 텍스트를 입력해주세요.`);
+      return null;
+    }
+    const choices = [];
+    for (let j = 0; j < types.length; j++) {
+      const cText = qBlocks[i].querySelector(`.choice-input-${j}`).value.trim();
+      if (!cText) {
+        showToast(`Q${i + 1}의 ${types[j]} 선택지를 입력해주세요.`);
+        return null;
+      }
+      choices.push({ text: cText, type: types[j] });
+    }
+    questions.push({ text: qText, choices });
+  }
+
+  // Collect results
+  const results = {};
+  const rBlocks = document.querySelectorAll('#results-builder .result-block');
+  for (const block of rBlocks) {
+    const type = block.dataset.resultType;
+    const rEmoji = block.querySelector('.r-emoji').value.trim();
+    const rType = block.querySelector('.r-type').value.trim();
+    const rDesc = block.querySelector('.r-desc').value.trim();
+    const rTags = block.querySelector('.r-tags').value.trim();
+
+    if (!rEmoji || !rType || !rDesc) {
+      showToast(`${type} 유형의 정보를 모두 입력해주세요.`);
+      return null;
+    }
+
+    results[type] = {
+      emoji: rEmoji,
+      type: rType,
+      desc: rDesc,
+      tags: rTags ? rTags.split(',').map(t => t.trim()).filter(t => t) : []
+    };
+  }
+
+  return {
+    id: editingTestId || 'custom_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+    emoji, title, desc,
+    cardClass: selectedColor,
+    badge, questions, results
+  };
+}
+
+async function saveTest() {
+  const data = collectFormData();
+  if (!data) return;
+
+  await saveOneTest(data);
+  editingTestId = null;
+  showToast('테스트가 저장되었습니다!');
+  clearForm();
+  await renderTestList();
+  switchTab('list');
+}
+
+function clearForm() {
+  editingTestId = null;
+  document.getElementById('f-emoji').value = '';
+  document.getElementById('f-title').value = '';
+  document.getElementById('f-desc').value = '';
+  document.getElementById('f-badge').value = '';
+  document.getElementById('f-qcount').value = 4;
+  questionCount = 4;
+  document.getElementById('f-qcount-display').textContent = '4';
+  resultTypeCount = 4;
+  document.getElementById('f-rcount').value = 4;
+  document.getElementById('f-rcount-display').textContent = '4';
+  selectedColor = COLOR_PRESETS[0].name;
+  renderColorPresets();
+  renderQuestionsBuilder();
+  renderResultsBuilder();
+  document.getElementById('preview-area').style.display = 'none';
+}
+
+// ──────────────────────────────────────────────
+//  FILL FORM FROM TEST DATA (used by AI & edit)
+// ──────────────────────────────────────────────
+function fillFormFromData(data) {
+  switchTab('create');
+
+  document.getElementById('f-emoji').value = data.emoji || '';
+  document.getElementById('f-title').value = data.title || '';
+  document.getElementById('f-desc').value = data.desc || '';
+  document.getElementById('f-badge').value = data.badge || '';
+
+  // Color
+  if (data.cardClass) {
+    const found = COLOR_PRESETS.find(c => c.name === data.cardClass);
+    if (found) {
+      selectedColor = found.name;
+    } else {
+      selectedColor = COLOR_PRESETS[0].name;
+    }
+  }
+  renderColorPresets();
+
+  // Detect result type count from data
+  if (data.results) {
+    const rCount = Object.keys(data.results).length;
+    resultTypeCount = Math.max(2, Math.min(20, rCount));
+  } else {
+    resultTypeCount = 4;
+  }
+  document.getElementById('f-rcount').value = resultTypeCount;
+  document.getElementById('f-rcount-display').textContent = resultTypeCount;
+
+  // Questions
+  const qCount = data.questions ? data.questions.length : 4;
+  questionCount = Math.max(2, Math.min(20, qCount));
+  document.getElementById('f-qcount').value = questionCount;
+  document.getElementById('f-qcount-display').textContent = questionCount;
+  renderQuestionsBuilder();
+
+  // Fill question values
+  if (data.questions) {
+    const qBlocks = document.querySelectorAll('#questions-builder .question-block');
+    data.questions.forEach((q, i) => {
+      if (i < qBlocks.length) {
+        qBlocks[i].querySelector('.q-text-input').value = q.text || '';
+        if (q.choices) {
+          q.choices.forEach((c, j) => {
+            const input = qBlocks[i].querySelector(`.choice-input-${j}`);
+            if (input) input.value = c.text || '';
+          });
+        }
+      }
+    });
+  }
+
+  // Results
+  renderResultsBuilder();
+  if (data.results) {
+    const rBlocks = document.querySelectorAll('#results-builder .result-block');
+    for (const block of rBlocks) {
+      const type = block.dataset.resultType;
+      if (data.results[type]) {
+        const r = data.results[type];
+        block.querySelector('.r-emoji').value = r.emoji || '';
+        block.querySelector('.r-type').value = r.type || '';
+        block.querySelector('.r-desc').value = r.desc || '';
+        block.querySelector('.r-tags').value = (r.tags || []).join(', ');
+      }
+    }
+  }
+
+  showToast('폼이 자동으로 채워졌습니다. 확인 후 저장해주세요.');
+}
+
+// ──────────────────────────────────────────────
+//  AI: PROMPT GENERATION
+// ──────────────────────────────────────────────
+function generatePrompt() {
+  const topic = document.getElementById('ai-topic').value.trim();
+  const qCount = document.getElementById('ai-qcount').value;
+  const rCount = document.getElementById('ai-rcount').value;
+
+  if (!topic) {
+    showToast('테스트 주제를 입력해주세요.');
+    return;
+  }
+
+  const typeLabels = getTypeLabels(parseInt(rCount));
+  const typeListStr = typeLabels.join(', ');
+  const choicesExample = typeLabels.map(t => `        { "text": "${t} 선택지 내용", "type": "${t}" }`).join(',\n');
+  const resultsExample = typeLabels.map((t, i) => {
+    if (i === 0) return `    "${t}": {\n      "emoji": "🔥",\n      "type": "유형 이름",\n      "desc": "이 유형에 대한 상세 설명 (2~3문장)",\n      "tags": ["#태그1", "#태그2", "#태그3", "#태그4"]\n    }`;
+    return `    "${t}": { "emoji": "...", "type": "...", "desc": "...", "tags": ["..."] }`;
+  }).join(',\n');
+
+  const prompt = `당신은 재미있고 흥미로운 심리테스트를 만드는 전문가입니다.
+
+아래 주제로 심리테스트를 만들어주세요.
+
+【주제】
+${topic}
+
+【요구사항】
+- 질문 개수: ${qCount}개
+- 결과 유형 수: ${rCount}개 (${typeListStr} 유형)
+- 각 질문에는 ${rCount}개의 선택지가 있어야 합니다 (${typeListStr} 유형)
+- 질문은 재미있고, 공감 가능하며, 일상적인 상황이면 좋겠습니다
+- 결과는 ${rCount}가지 유형 (${typeListStr})으로 나뉘어야 합니다
+- 각 결과 유형에는 이모지, 유형 이름, 설명, 해시태그가 포함되어야 합니다
+- 모든 내용은 한국어로 작성해주세요
+- 반말(~해요) 말투로 부드럽고 친근하게 작성해주세요
+
+【출력 형식】
+반드시 아래 JSON 형식으로만 응답해주세요. JSON 외의 다른 텍스트는 포함하지 마세요.
+
+\`\`\`json
+{
+  "emoji": "🎯",
+  "title": "테스트 제목",
+  "desc": "테스트에 대한 짧은 설명",
+  "badge": "카테고리명",
+  "cardClass": "card-love",
+  "questions": [
+    {
+      "text": "질문 내용?",
+      "choices": [
+${choicesExample}
+      ]
+    }
+  ],
+  "results": {
+${resultsExample}
+  }
+}
+\`\`\`
+
+cardClass 값은 다음 중 하나를 사용해주세요:
+card-love, card-stress, card-personality, card-sunset, card-ocean, card-rose, card-forest, card-night, card-coral, card-sky
+
+주제에 어울리는 색상을 골라주세요.`;
+
+  navigator.clipboard.writeText(prompt).then(() => {
+    showToast('프롬프트가 클립보드에 복사되었습니다! AI에 붙여넣으세요.');
+  }).catch(() => {
+    // Fallback
+    const ta = document.createElement('textarea');
+    ta.value = prompt;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('프롬프트가 클립보드에 복사되었습니다!');
+  });
+}
+
+// ──────────────────────────────────────────────
+//  AI: PARSE JSON
+// ──────────────────────────────────────────────
+function parseAiJson() {
+  let raw = document.getElementById('ai-json-paste').value.trim();
+  if (!raw) {
+    showToast('JSON을 붙여넣어주세요.');
+    return;
+  }
+
+  // Try to extract JSON from markdown code blocks
+  const jsonMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (jsonMatch) raw = jsonMatch[1].trim();
+
+  try {
+    const data = JSON.parse(raw);
+    validateTestData(data);
+    fillFormFromData(data);
+    document.getElementById('ai-json-paste').value = '';
+  } catch (e) {
+    showToast('JSON 파싱 실패: ' + e.message);
+  }
+}
+
+function validateTestData(data) {
+  if (!data.title) throw new Error('title 필드가 없습니다.');
+  if (!data.questions || !Array.isArray(data.questions)) throw new Error('questions 배열이 없습니다.');
+  if (data.questions.length < 2 || data.questions.length > 20) throw new Error('질문은 2~20개여야 합니다.');
+  if (!data.results) throw new Error('results 객체가 없습니다.');
+  const resultKeys = Object.keys(data.results);
+  if (resultKeys.length < 2 || resultKeys.length > 20) throw new Error('결과 유형은 2~20개여야 합니다.');
+  for (let i = 0; i < data.questions.length; i++) {
+    const q = data.questions[i];
+    if (!q.text) throw new Error(`질문 ${i + 1}에 text가 없습니다.`);
+    if (!q.choices || q.choices.length !== resultKeys.length) throw new Error(`질문 ${i + 1}에 선택지가 ${resultKeys.length}개여야 합니다.`);
+  }
+  for (const type of resultKeys) {
+    if (!data.results[type]) throw new Error(`${type} 유형 결과가 없습니다.`);
+  }
+}
+
+// ──────────────────────────────────────────────
+//  AI: API CALL (Anthropic Claude)
+// ──────────────────────────────────────────────
+async function callAiApi() {
+  const apiKey = document.getElementById('ai-api-key').value.trim();
+  const topic = document.getElementById('ai-topic').value.trim();
+  const qCount = document.getElementById('ai-qcount').value;
+  const rCount = document.getElementById('ai-rcount').value;
+
+  if (!apiKey) {
+    showToast('API Key를 입력해주세요.');
+    return;
+  }
+  if (!topic) {
+    showToast('테스트 주제를 입력해주세요.');
+    return;
+  }
+
+  const btn = document.getElementById('ai-api-btn');
+  const status = document.getElementById('ai-api-status');
+  btn.disabled = true;
+  btn.textContent = '생성 중...';
+  status.textContent = 'AI가 테스트를 생성하고 있습니다. 잠시만 기다려주세요...';
+
+  const typeLabels = getTypeLabels(parseInt(rCount));
+  const typeListStr = typeLabels.join(', ');
+  const choicesJson = typeLabels.map(t => `{"text":"선택지","type":"${t}"}`).join(',');
+  const resultsJson = typeLabels.map(t => `"${t}":{"emoji":"","type":"","desc":"","tags":[]}`).join(',');
+
+  const systemPrompt = '당신은 재미있고 흥미로운 심리테스트를 만드는 전문가입니다. 반드시 유효한 JSON만 출력하세요. 다른 텍스트는 포함하지 마세요.';
+
+  const userPrompt = `아래 주제로 심리테스트를 만들어주세요.
+
+주제: ${topic}
+
+요구사항:
+- 질문 개수: ${qCount}개
+- 결과 유형 수: ${rCount}개 (${typeListStr} 유형)
+- 각 질문에는 ${rCount}개의 선택지 (${typeListStr} 유형)
+- 질문은 재미있고, 공감 가능하며, 일상적인 상황
+- 결과는 ${rCount}가지 유형 (${typeListStr})
+- 한국어로 작성, 반말(~해요) 말투
+- cardClass는 다음 중 하나: card-love, card-stress, card-personality, card-sunset, card-ocean, card-rose, card-forest, card-night, card-coral, card-sky
+
+JSON 형식:
+{"emoji":"🎯","title":"제목","desc":"설명","badge":"카테고리","cardClass":"card-love","questions":[{"text":"질문?","choices":[${choicesJson}]}],"results":{${resultsJson}}}`;
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4096,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }]
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error?.message || `API 오류 (${response.status})`);
+    }
+
+    const result = await response.json();
+    let text = result.content[0].text.trim();
+
+    // Extract JSON from potential markdown blocks
+    const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (jsonMatch) text = jsonMatch[1].trim();
+
+    const data = JSON.parse(text);
+    validateTestData(data);
+    fillFormFromData(data);
+
+    status.textContent = '생성 완료! 폼을 확인해주세요.';
+    status.style.color = '#0d7d6c';
+  } catch (e) {
+    status.textContent = '오류: ' + e.message;
+    status.style.color = 'var(--danger)';
+    showToast('AI 생성 실패: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'AI로 자동 생성';
+  }
+}
+
+// ──────────────────────────────────────────────
+//  EXPORT / IMPORT
+// ──────────────────────────────────────────────
+async function exportTests() {
+  await getCustomTests();
+  const tests = _cachedCustomTests;
+  if (tests.length === 0) {
+    showToast('내보낼 커스텀 테스트가 없습니다.');
+    return;
+  }
+
+  const dataStr = JSON.stringify(tests, null, 2);
+  const blob = new Blob([dataStr], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `심리테스트_백업_${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  showToast(`${tests.length}개의 테스트를 내보냈습니다.`);
+}
+
+function importTests(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    try {
+      const imported = JSON.parse(e.target.result);
+
+      if (!Array.isArray(imported)) {
+        throw new Error('JSON 파일은 배열 형식이어야 합니다.');
+      }
+
+      let addedCount = 0;
+      for (const test of imported) {
+        try {
+          validateTestData(test);
+          if (!test.id) {
+            test.id = 'custom_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+          }
+          await saveOneTest(test);
+          addedCount++;
+        } catch { /* skip */ }
+      }
+
+      await renderTestList();
+      showToast(`${addedCount}개의 테스트를 가져왔습니다.`);
+    } catch (e) {
+      showToast('파일 처리 오류: ' + e.message);
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+// ──────────────────────────────────────────────
+//  INIT
+// ──────────────────────────────────────────────
+async function init() {
+  await renderTestList();
+  renderColorPresets();
+  renderQuestionsBuilder();
+  renderResultsBuilder();
+}
+
+init();
+</script>
+</body>
+</html>

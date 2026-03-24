@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>심리테스트 - 나를 알아보는 시간</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --pink: #ff6b9d;
+  --purple: #c44dff;
+  --blue: #4d79ff;
+  --mint: #36d6b5;
+  --yellow: #ffc940;
+  --orange: #ff8c42;
+  --bg: #f5f0ff;
+  --card-radius: 20px;
+  --btn-radius: 16px;
+  --shadow: 0 8px 32px rgba(120, 80, 200, 0.12);
+  --shadow-hover: 0 12px 40px rgba(120, 80, 200, 0.22);
+}
+
+body {
+  font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  min-height: 100vh;
+  color: #333;
+  overflow-x: hidden;
+}
+
+/* === Animated background blobs === */
+.bg-blobs {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
+}
+.bg-blobs span {
+  position: absolute; border-radius: 50%; filter: blur(80px); opacity: .3;
+}
+.bg-blobs span:nth-child(1) { width: 420px; height: 420px; background: #e0c3fc; top: -100px; left: -80px; animation: float1 18s ease-in-out infinite; }
+.bg-blobs span:nth-child(2) { width: 360px; height: 360px; background: #fbc2eb; bottom: -60px; right: -60px; animation: float2 22s ease-in-out infinite; }
+.bg-blobs span:nth-child(3) { width: 300px; height: 300px; background: #a1c4fd; top: 40%; left: 50%; animation: float3 20s ease-in-out infinite; }
+
+@keyframes float1 { 0%,100%{ transform: translate(0,0); } 50%{ transform: translate(60px,80px); } }
+@keyframes float2 { 0%,100%{ transform: translate(0,0); } 50%{ transform: translate(-50px,-70px); } }
+@keyframes float3 { 0%,100%{ transform: translate(0,0); } 50%{ transform: translate(-40px,50px); } }
+
+/* === Layout === */
+.container {
+  position: relative; z-index: 1;
+  max-width: 520px; margin: 0 auto; padding: 20px 16px 40px;
+}
+
+/* === Header === */
+.header {
+  text-align: center; padding: 28px 0 12px;
+}
+.header h1 {
+  font-size: 28px; font-weight: 900;
+  background: linear-gradient(135deg, var(--pink), var(--purple), var(--blue));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.header p {
+  margin-top: 6px; font-size: 14px; color: #9b8ec4; font-weight: 500;
+}
+
+/* === Screen transitions === */
+.screen {
+  display: none; animation: fadeSlideIn .45s cubic-bezier(.4,0,.2,1) both;
+}
+.screen.active { display: block; }
+
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* === Main page test cards === */
+.test-grid {
+  display: grid; gap: 16px; margin-top: 20px;
+}
+.test-card {
+  position: relative; border-radius: var(--card-radius); padding: 28px 22px;
+  color: #fff; cursor: pointer; overflow: hidden;
+  box-shadow: var(--shadow);
+  transition: transform .25s, box-shadow .25s;
+}
+.test-card:hover {
+  transform: translateY(-4px); box-shadow: var(--shadow-hover);
+}
+.test-card::after {
+  content: ''; position: absolute; inset: 0; border-radius: var(--card-radius);
+  background: linear-gradient(135deg, rgba(255,255,255,.18) 0%, transparent 60%);
+  pointer-events: none;
+}
+.test-card .emoji {
+  font-size: 48px; display: block; margin-bottom: 12px;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,.15));
+}
+.test-card .title {
+  font-size: 18px; font-weight: 700; line-height: 1.4;
+}
+.test-card .desc {
+  margin-top: 6px; font-size: 13px; opacity: .88; line-height: 1.5;
+}
+.test-card .badge {
+  display: inline-block; margin-top: 12px; padding: 4px 14px;
+  background: rgba(255,255,255,.25); border-radius: 20px;
+  font-size: 12px; font-weight: 700; backdrop-filter: blur(4px);
+}
+
+/* Card color themes */
+.card-love   { background: linear-gradient(135deg, #ff6b9d, #ff8a65); }
+.card-stress { background: linear-gradient(135deg, #7c4dff, #448aff); }
+.card-personality { background: linear-gradient(135deg, #26c6da, #66bb6a); }
+
+/* === Test screen === */
+.test-header {
+  text-align: center; margin-bottom: 20px;
+}
+.test-header .back-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: none; border: none; color: #9b8ec4; font-size: 14px;
+  font-weight: 500; cursor: pointer; padding: 8px 0; font-family: inherit;
+}
+.test-header .back-btn:hover { color: var(--purple); }
+.test-header .test-title {
+  font-size: 20px; font-weight: 700; margin-top: 4px; color: #4a3878;
+}
+
+/* Progress bar */
+.progress-wrap {
+  margin: 16px 0 8px; position: relative;
+}
+.progress-bar-bg {
+  height: 10px; background: #e8e0f5; border-radius: 10px; overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%; border-radius: 10px;
+  background: linear-gradient(90deg, var(--purple), var(--pink));
+  transition: width .5s cubic-bezier(.4,0,.2,1);
+}
+.progress-text {
+  text-align: right; font-size: 12px; color: #9b8ec4; margin-top: 4px; font-weight: 500;
+}
+
+/* Question card */
+.question-card {
+  background: #fff; border-radius: var(--card-radius); padding: 32px 24px;
+  box-shadow: var(--shadow); margin-top: 16px;
+  animation: fadeSlideIn .4s cubic-bezier(.4,0,.2,1) both;
+}
+.question-number {
+  display: inline-block; padding: 4px 14px; border-radius: 20px;
+  background: linear-gradient(135deg, var(--purple), var(--pink));
+  color: #fff; font-size: 12px; font-weight: 700; margin-bottom: 16px;
+}
+.question-text {
+  font-size: 18px; font-weight: 700; line-height: 1.6; color: #2d2252;
+  margin-bottom: 24px; word-break: keep-all;
+}
+
+/* Choice buttons */
+.choices { display: grid; gap: 12px; }
+.choice-btn {
+  display: block; width: 100%; padding: 16px 20px;
+  background: #f8f4ff; border: 2px solid #ece4f8;
+  border-radius: var(--btn-radius); cursor: pointer;
+  font-size: 15px; font-weight: 500; color: #4a3878;
+  text-align: left; line-height: 1.5;
+  transition: all .2s; font-family: inherit;
+  word-break: keep-all;
+}
+.choice-btn:hover {
+  background: #efe6ff; border-color: var(--purple);
+  transform: translateY(-2px); box-shadow: 0 4px 16px rgba(120,80,200,.12);
+}
+.choice-btn:active {
+  transform: scale(.97);
+}
+.choice-btn.selected {
+  background: linear-gradient(135deg, var(--purple), var(--pink));
+  color: #fff; border-color: transparent;
+  box-shadow: 0 4px 20px rgba(180,80,200,.25);
+}
+
+/* === Result screen === */
+.result-card {
+  background: #fff; border-radius: var(--card-radius); padding: 36px 24px;
+  box-shadow: var(--shadow); text-align: center;
+  animation: fadeSlideIn .5s cubic-bezier(.4,0,.2,1) both;
+}
+.result-emoji {
+  font-size: 72px; margin-bottom: 8px;
+  animation: bounceIn .6s .2s cubic-bezier(.34,1.56,.64,1) both;
+}
+@keyframes bounceIn {
+  from { opacity: 0; transform: scale(.3); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.result-label {
+  display: inline-block; padding: 6px 20px; border-radius: 20px;
+  background: linear-gradient(135deg, var(--purple), var(--pink));
+  color: #fff; font-size: 13px; font-weight: 700; margin-bottom: 16px;
+}
+.result-type {
+  font-size: 26px; font-weight: 900; color: #2d2252; margin-bottom: 8px;
+  line-height: 1.4;
+}
+.result-desc {
+  font-size: 15px; color: #6b5b8a; line-height: 1.8; margin-bottom: 24px;
+  word-break: keep-all;
+}
+.result-tags {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 8px;
+  margin-bottom: 28px;
+}
+.result-tag {
+  padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 600;
+  background: #f3edff; color: var(--purple);
+}
+
+/* Action buttons */
+.action-btns { display: grid; gap: 10px; }
+.action-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 16px; border-radius: var(--btn-radius);
+  font-size: 15px; font-weight: 700; cursor: pointer;
+  border: none; font-family: inherit; transition: all .2s;
+}
+.action-btn:active { transform: scale(.97); }
+.btn-save-img {
+  background: linear-gradient(135deg, #ff8c42, #ffc940);
+  color: #fff; box-shadow: 0 4px 20px rgba(255,140,66,.25);
+}
+.btn-save-img:hover { box-shadow: 0 6px 28px rgba(255,140,66,.35); }
+.btn-share {
+  background: linear-gradient(135deg, var(--purple), var(--pink));
+  color: #fff; box-shadow: 0 4px 20px rgba(180,80,200,.25);
+}
+.btn-share:hover { box-shadow: 0 6px 28px rgba(180,80,200,.35); }
+.btn-retry {
+  background: #f3edff; color: var(--purple);
+}
+.btn-retry:hover { background: #e8ddf8; }
+.btn-home {
+  background: transparent; color: #9b8ec4; border: 2px solid #e8e0f5;
+}
+.btn-home:hover { background: #f8f4ff; }
+
+/* Result image */
+.result-img {
+  display: block;
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto 20px;
+  border-radius: 16px;
+  box-shadow: 0 6px 24px rgba(120, 80, 200, 0.18);
+}
+
+/* Share Bottom Sheet */
+.share-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 200;
+  opacity: 0; pointer-events: none; transition: opacity .3s;
+}
+.share-overlay.show { opacity: 1; pointer-events: auto; }
+.share-sheet {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 201;
+  background: #fff; border-radius: 24px 24px 0 0; padding: 20px 20px 32px;
+  transform: translateY(100%); transition: transform .35s cubic-bezier(.4,0,.2,1);
+  max-width: 520px; margin: 0 auto;
+}
+.share-overlay.show .share-sheet { transform: translateY(0); }
+.share-sheet-handle {
+  width: 40px; height: 4px; background: #ddd; border-radius: 4px;
+  margin: 0 auto 16px;
+}
+.share-sheet h3 {
+  font-size: 17px; font-weight: 700; color: #2d2252; margin-bottom: 16px; text-align: center;
+}
+.share-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px;
+}
+.share-item {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 12px 4px; border-radius: 16px; cursor: pointer; border: none;
+  background: transparent; font-family: inherit; transition: background .2s;
+}
+.share-item:hover { background: #f5f0ff; }
+.share-item:active { transform: scale(.95); }
+.share-icon {
+  width: 48px; height: 48px; border-radius: 14px; display: flex;
+  align-items: center; justify-content: center; font-size: 24px;
+}
+.share-icon.kakao { background: #FEE500; }
+.share-icon.twitter { background: #1DA1F2; color: #fff; }
+.share-icon.facebook { background: #1877F2; color: #fff; }
+.share-icon.line { background: #06C755; color: #fff; }
+.share-item span { font-size: 12px; font-weight: 600; color: #666; }
+.share-url-box {
+  display: flex; gap: 8px; margin-top: 4px;
+}
+.share-url-input {
+  flex: 1; padding: 12px 16px; border: 2px solid #e8e0f5; border-radius: 12px;
+  font-size: 13px; color: #666; background: #f8f4ff; font-family: inherit;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.share-url-copy {
+  padding: 12px 20px; border: none; border-radius: 12px; font-weight: 700;
+  font-size: 13px; cursor: pointer; font-family: inherit;
+  background: linear-gradient(135deg, var(--purple), var(--pink)); color: #fff;
+  white-space: nowrap;
+}
+.share-url-copy:active { transform: scale(.95); }
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(80px);
+  background: #333; color: #fff; padding: 14px 28px; border-radius: 14px;
+  font-size: 14px; font-weight: 600; z-index: 100;
+  box-shadow: 0 8px 32px rgba(0,0,0,.2);
+  transition: transform .35s cubic-bezier(.4,0,.2,1), opacity .35s;
+  opacity: 0; pointer-events: none;
+}
+.toast.show {
+  transform: translateX(-50%) translateY(0); opacity: 1;
+}
+
+/* Footer */
+.footer {
+  text-align: center; margin-top: 40px; padding-bottom: 20px;
+  font-size: 12px; color: #bbb;
+}
+
+/* Confetti canvas */
+#confetti {
+  position: fixed; inset: 0; z-index: 50; pointer-events: none;
+}
+</style>
+</head>
+<body>
+
+<div class="bg-blobs"><span></span><span></span><span></span></div>
+
+<div class="container">
+  <div class="header" style="position:relative;">
+    <h1>심리테스트</h1>
+    <p>나를 알아보는 재미있는 시간</p>
+    <a href="admin.html" style="position:absolute;top:28px;right:0;color:#c4b5dc;font-size:22px;text-decoration:none;padding:4px 8px;" title="관리자">⚙️</a>
+  </div>
+
+  <!-- Main Screen -->
+  <div id="screen-main" class="screen active">
+    <div class="test-grid" id="test-grid"></div>
+    <div class="footer">made with love</div>
+  </div>
+
+  <!-- Test Screen -->
+  <div id="screen-test" class="screen">
+    <div class="test-header">
+      <button class="back-btn" onclick="goHome()">&#8592; 목록으로</button>
+      <div class="test-title" id="test-title-display"></div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-bar-bg"><div class="progress-bar-fill" id="progress-fill"></div></div>
+      <div class="progress-text" id="progress-text"></div>
+    </div>
+    <div id="question-area"></div>
+  </div>
+
+  <!-- Result Screen -->
+  <div id="screen-result" class="screen">
+    <div class="result-card" id="result-card"></div>
+  </div>
+</div>
+
+<!-- Share Bottom Sheet -->
+<div class="share-overlay" id="share-overlay" onclick="closeShareSheet()">
+  <div class="share-sheet" onclick="event.stopPropagation()">
+    <div class="share-sheet-handle"></div>
+    <h3>결과 공유하기</h3>
+    <div class="share-grid" id="share-grid">
+      <button class="share-item" id="share-native-btn" onclick="shareNative()">
+        <div class="share-icon" style="background:linear-gradient(135deg,#a855f7,#ec4899);color:#fff;">📱</div>
+        <span>앱으로 공유</span>
+      </button>
+      <button class="share-item" onclick="shareToTwitter()">
+        <div class="share-icon twitter">𝕏</div>
+        <span>트위터</span>
+      </button>
+      <button class="share-item" onclick="shareToFacebook()">
+        <div class="share-icon facebook">f</div>
+        <span>페이스북</span>
+      </button>
+      <button class="share-item" onclick="shareToLine()">
+        <div class="share-icon line">💚</div>
+        <span>라인</span>
+      </button>
+    </div>
+    <div class="share-url-box">
+      <input type="text" class="share-url-input" id="share-url-input" readonly />
+      <button class="share-url-copy" onclick="copyShareUrl()">URL 복사</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<canvas id="confetti"></canvas>
+
+<script>
+// ──────────────────────────────────────────────
+//  TEST DATA  (edit / add tests here)
+// ──────────────────────────────────────────────
+const TESTS = [
+  {
+    id: 'love',
+    emoji: '💘',
+    title: '나의 연애 유형 테스트',
+    desc: '연애할 때 나는 어떤 스타일일까? 숨겨진 연애 DNA를 알아보세요!',
+    cardClass: 'card-love',
+    badge: '연애',
+    questions: [
+      {
+        text: '좋아하는 사람이 생겼을 때, 나의 첫 반응은?',
+        choices: [
+          { text: '바로 연락처를 물어본다. 행동이 빨라야지!', type: 'A' },
+          { text: '멀리서 조용히 관찰하며 정보를 수집한다', type: 'B' },
+          { text: '친구들에게 먼저 알리고 작전을 짠다', type: 'C' },
+          { text: '자연스럽게 마주칠 수 있는 상황을 만든다', type: 'D' }
+        ]
+      },
+      {
+        text: '연인과의 데이트 코스를 정할 때 나는?',
+        choices: [
+          { text: '서프라이즈! 내가 완벽하게 계획한다', type: 'A' },
+          { text: '상대방이 원하는 것에 맞춰준다', type: 'B' },
+          { text: '같이 맛집 리스트 보면서 고른다', type: 'C' },
+          { text: '그날 기분에 따라 즉흥적으로 결정한다', type: 'D' }
+        ]
+      },
+      {
+        text: '연인이 갑자기 기분이 안 좋아 보일 때?',
+        choices: [
+          { text: '"왜 그래? 무슨 일이야?" 바로 직접적으로 물어본다', type: 'A' },
+          { text: '말 없이 따뜻한 음료를 건네고 기다려준다', type: 'B' },
+          { text: '웃긴 영상이나 밈을 보내서 웃게 해준다', type: 'C' },
+          { text: '조용히 옆에 있어주며 손을 잡아준다', type: 'D' }
+        ]
+      },
+      {
+        text: '이상적인 프로포즈 장소는?',
+        choices: [
+          { text: '도시 전망이 보이는 루프탑 레스토랑', type: 'A' },
+          { text: '둘만의 추억이 있는 조용한 장소', type: 'B' },
+          { text: '친구들과 가족이 함께하는 파티에서', type: 'C' },
+          { text: '여행 중 아름다운 자연 속에서', type: 'D' }
+        ]
+      }
+    ],
+    results: {
+      A: {
+        emoji: '🔥',
+        type: '열정적인 사랑꾼',
+        desc: '당신은 사랑 앞에서 누구보다 적극적이고 열정적인 타입이에요. 좋아하면 바로 표현하고, 데이트도 완벽하게 준비하는 로맨티스트! 상대방을 리드하면서도 세심한 배려를 잊지 않는 매력적인 연인이에요.',
+        tags: ['#적극적', '#로맨티스트', '#리더형연인', '#열정가득']
+      },
+      B: {
+        emoji: '🌙',
+        type: '조용한 깊은 사랑형',
+        desc: '당신은 말보다 행동으로 사랑을 표현하는 깊은 사랑의 소유자예요. 상대방을 세심하게 관찰하고, 필요할 때 조용히 곁에 있어주는 든든한 존재. 겉으로는 차분하지만 속으로는 누구보다 뜨거운 감정을 가지고 있어요.',
+        tags: ['#깊은사랑', '#행동파', '#든든한연인', '#관찰력']
+      },
+      C: {
+        emoji: '🎉',
+        type: '함께하는 사랑 메이커',
+        desc: '당신은 사랑도 우정도 모두 소중히 여기는 소셜 러버! 연인과의 관계에서도 재미와 즐거움을 중요하게 생각하고, 주변 사람들과 함께 행복을 나누는 것을 좋아해요. 유머 감각과 밝은 에너지로 어디서든 분위기 메이커!',
+        tags: ['#소셜러버', '#유머감각', '#분위기메이커', '#함께하는사랑']
+      },
+      D: {
+        emoji: '🦋',
+        type: '감성적인 자유로운 영혼',
+        desc: '당신은 감성적이면서도 자유로운 영혼의 소유자예요. 틀에 박힌 연애보다는 자연스럽고 편안한 관계를 추구하며, 소소한 일상 속에서 로맨스를 찾는 타입이에요. 즉흥적인 설렘을 사랑하는 낭만주의자!',
+        tags: ['#자유영혼', '#감성러버', '#낭만주의', '#즉흥설렘']
+      }
+    }
+  },
+  {
+    id: 'stress',
+    emoji: '🧘',
+    title: '나의 스트레스 해소법 테스트',
+    desc: '스트레스 받을 때 나에게 딱 맞는 힐링 방법은? 지금 확인하세요!',
+    cardClass: 'card-stress',
+    badge: '힐링',
+    questions: [
+      {
+        text: '월요일 아침, 출근길에 비가 쏟아진다. 이때 드는 생각은?',
+        choices: [
+          { text: '"에잇, 퇴근하면 맛있는 거 먹어야지"', type: 'A' },
+          { text: '"비 오는 날 듣기 좋은 플레이리스트 틀자"', type: 'B' },
+          { text: '"친구한테 카톡해서 오늘 얼마나 힘든지 공유해야지"', type: 'C' },
+          { text: '"오늘 퇴근하고 운동 빡세게 해야겠다"', type: 'D' }
+        ]
+      },
+      {
+        text: '상사에게 억울한 지적을 받았을 때 나는?',
+        choices: [
+          { text: '점심시간에 좋아하는 디저트를 사 먹는다', type: 'A' },
+          { text: '이어폰 꽂고 음악에 빠져든다', type: 'B' },
+          { text: '동료에게 찾아가서 오늘 있었던 일을 털어놓는다', type: 'C' },
+          { text: '화장실에 가서 스트레칭을 하거나 깊게 심호흡한다', type: 'D' }
+        ]
+      },
+      {
+        text: '아무 계획 없는 주말, 스트레스 해소를 위해 하고 싶은 것은?',
+        choices: [
+          { text: '밀린 드라마 정주행하며 배달음식 시키기', type: 'A' },
+          { text: '감성 카페에서 혼자 책 읽거나 그림 그리기', type: 'B' },
+          { text: '친구들 불러모아서 수다 파티', type: 'C' },
+          { text: '등산, 수영, 자전거 등 몸을 움직이는 활동', type: 'D' }
+        ]
+      },
+      {
+        text: '잠이 안 올 때 내가 가장 많이 하는 것은?',
+        choices: [
+          { text: 'ASMR이나 먹방 보면서 야식 고민하기', type: 'A' },
+          { text: '좋아하는 음악 듣거나 일기 쓰기', type: 'B' },
+          { text: '친구에게 전화해서 수다 떨기', type: 'C' },
+          { text: '가벼운 요가나 명상 앱 켜기', type: 'D' }
+        ]
+      }
+    ],
+    results: {
+      A: {
+        emoji: '🍰',
+        type: '미식 힐링형',
+        desc: '당신의 스트레스 해소 키워드는 바로 "맛있는 것"! 좋아하는 음식을 먹을 때 가장 큰 위안을 받는 타입이에요. 달콤한 디저트, 든든한 한 끼, 야식의 행복... 먹는 즐거움이 당신에게 최고의 힐링이에요. 가끔은 건강도 챙기면서 맛있는 행복을 누려보세요!',
+        tags: ['#먹보힐링', '#디저트러버', '#미식가', '#먹방치료']
+      },
+      B: {
+        emoji: '🎨',
+        type: '감성 충전형',
+        desc: '당신은 음악, 예술, 자연 같은 감성적인 것들로 마음을 치유하는 타입이에요. 혼자만의 시간을 통해 내면을 돌보고, 창의적인 활동으로 스트레스를 녹여내요. 감수성이 풍부한 당신에게는 아름다운 것들이 최고의 약이에요.',
+        tags: ['#감성힐링', '#예술혼', '#혼자만의시간', '#음악치료']
+      },
+      C: {
+        emoji: '💬',
+        type: '소통 치유형',
+        desc: '당신은 사람들과의 대화를 통해 스트레스를 해소하는 타입이에요! 마음속에 답답한 것을 털어놓고 공감을 받으면 금방 기분이 풀리는 소통형. 주변에 당신의 이야기를 들어줄 좋은 사람들이 있다는 건 큰 축복이에요.',
+        tags: ['#수다치료', '#공감능력', '#소통왕', '#인싸힐링']
+      },
+      D: {
+        emoji: '🏃',
+        type: '활동 에너지형',
+        desc: '당신은 몸을 움직여야 스트레스가 풀리는 활동형이에요! 운동, 산책, 여행 등 신체적인 활동을 통해 부정적인 에너지를 발산하고 긍정적인 기운을 충전하는 타입. 건강한 해소법을 가진 당신, 정말 멋져요!',
+        tags: ['#운동치료', '#에너지발산', '#액티브', '#건강한힐링']
+      }
+    }
+  },
+  {
+    id: 'personality',
+    emoji: '🎭',
+    title: '나의 숨겨진 성격 테스트',
+    desc: '남들은 모르는 나의 진짜 성격! 내 안에 숨겨진 또 다른 나를 찾아보세요.',
+    cardClass: 'card-personality',
+    badge: '성격',
+    questions: [
+      {
+        text: '단체 카톡방에 누군가 의견을 물어봤을 때 나는?',
+        choices: [
+          { text: '제일 먼저 의견을 내고 분위기를 이끈다', type: 'A' },
+          { text: '다른 사람들 의견을 먼저 보고 신중하게 답한다', type: 'B' },
+          { text: '재미있는 답변으로 분위기를 풀어준다', type: 'C' },
+          { text: '조용히 읽고만 있다가 나중에 1:1로 말한다', type: 'D' }
+        ]
+      },
+      {
+        text: '갑자기 여행을 가게 되었다! 나의 준비 스타일은?',
+        choices: [
+          { text: '시간대별 완벽한 여행 계획표를 만든다', type: 'A' },
+          { text: '숙소와 교통편만 정하고 나머지는 현지에서', type: 'B' },
+          { text: '일행들의 의견을 모아서 모두가 만족할 코스를 짠다', type: 'C' },
+          { text: '계획? 그런 건 없다. 발길 닿는 대로 간다', type: 'D' }
+        ]
+      },
+      {
+        text: '친구가 심각한 고민을 이야기할 때 나는?',
+        choices: [
+          { text: '구체적인 해결 방법과 조언을 제시한다', type: 'A' },
+          { text: '차분히 경청하고 공감해준다', type: 'B' },
+          { text: '분위기가 무거워지지 않게 적절히 위로와 유머를 섞는다', type: 'C' },
+          { text: '말없이 곁에 있어주고, 필요하면 혼자 생각할 시간도 준다', type: 'D' }
+        ]
+      },
+      {
+        text: '내가 가장 에너지를 얻는 순간은?',
+        choices: [
+          { text: '목표를 달성했을 때 느끼는 성취감', type: 'A' },
+          { text: '새로운 지식이나 통찰을 얻었을 때', type: 'B' },
+          { text: '사랑하는 사람들과 웃고 떠들 때', type: 'C' },
+          { text: '조용한 공간에서 나만의 시간을 보낼 때', type: 'D' }
+        ]
+      }
+    ],
+    results: {
+      A: {
+        emoji: '👑',
+        type: '타고난 리더, 카리스마 행동가',
+        desc: '당신의 숨겨진 성격은 바로 "왕의 기질"! 겉으로는 부드러워 보여도 내면에는 강한 추진력과 리더십이 숨어 있어요. 목표가 생기면 누구보다 빠르게 움직이고, 주변 사람들을 이끄는 힘이 있어요. 때로는 완벽주의적인 면이 스트레스가 될 수 있지만, 그것이 바로 당신의 강점이에요.',
+        tags: ['#리더기질', '#추진력갑', '#카리스마', '#완벽주의자']
+      },
+      B: {
+        emoji: '🦉',
+        type: '깊은 사색가, 지혜로운 현자',
+        desc: '당신의 숨겨진 성격은 "깊이 있는 사색가"! 겉으로는 평범해 보여도, 내면에서는 항상 깊은 생각을 하고 있어요. 신중하게 판단하고, 한번 내린 결론에는 확신을 가지는 타입. 조용하지만 누구보다 단단한 내면의 소유자예요.',
+        tags: ['#사색가', '#신중함', '#지혜로운', '#깊은내면']
+      },
+      C: {
+        emoji: '☀️',
+        type: '인간 비타민, 따뜻한 조화자',
+        desc: '당신의 숨겨진 성격은 "사람들의 햇살"! 어디를 가든 분위기를 밝히고, 갈등이 있을 때는 자연스럽게 중재하는 능력이 있어요. 타인의 감정에 민감하고 배려심이 깊은 당신은 모두가 좋아할 수밖에 없는 사람이에요.',
+        tags: ['#인간비타민', '#분위기메이커', '#배려왕', '#조화로운']
+      },
+      D: {
+        emoji: '🌌',
+        type: '신비로운 독립가, 자유로운 예술가',
+        desc: '당신의 숨겨진 성격은 "신비로운 독립가"! 혼자만의 세계가 풍부하고, 남들이 모르는 독특한 감성과 시각을 가지고 있어요. 겉으로는 조용하지만 내면은 창의적인 아이디어로 가득 차 있는 예술가적 기질의 소유자예요.',
+        tags: ['#독립적', '#자유영혼', '#예술가기질', '#신비로운']
+      }
+    }
+  }
+];
+
+// ──────────────────────────────────────────────
+//  APP STATE
+// ──────────────────────────────────────────────
+let currentTest = null;
+let currentQuestion = 0;
+let answers = [];
+let generatedImageDataUrl = null;
+
+// ──────────────────────────────────────────────
+//  COLOR SCHEMES FOR RESULT TYPES
+// ──────────────────────────────────────────────
+const RESULT_COLOR_SCHEMES = {
+  A: { gradient: ['#ff9a9e', '#fecfef'], accent: '#ff6b9d', text: '#c0395e' },
+  B: { gradient: ['#c3aed6', '#e8d5f5'], accent: '#a855f7', text: '#6b21a8' },
+  C: { gradient: ['#a8edea', '#c2f9d0'], accent: '#36d6b5', text: '#0d7d6c' },
+  D: { gradient: ['#ffecd2', '#fcb69f'], accent: '#ffc940', text: '#b8630a' }
+};
+
+// ──────────────────────────────────────────────
+//  SEEDED RANDOM (consistent decorations)
+// ──────────────────────────────────────────────
+function seededRandom(seed) {
+  let s = seed;
+  return function() {
+    s = (s * 16807 + 0) % 2147483647;
+    return (s - 1) / 2147483646;
+  };
+}
+
+// ──────────────────────────────────────────────
+//  CANVAS RESULT IMAGE GENERATOR
+// ──────────────────────────────────────────────
+function generateResultImage(emoji, typeName, testTitle, colorScheme) {
+  const W = 600, H = 400;
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  // --- Pastel gradient background ---
+  const grad = ctx.createLinearGradient(0, 0, W, H);
+  grad.addColorStop(0, colorScheme.gradient[0]);
+  grad.addColorStop(1, colorScheme.gradient[1]);
+  ctx.fillStyle = grad;
+
+  // Rounded rect background
+  const r = 24;
+  ctx.beginPath();
+  ctx.moveTo(r, 0);
+  ctx.lineTo(W - r, 0); ctx.quadraticCurveTo(W, 0, W, r);
+  ctx.lineTo(W, H - r); ctx.quadraticCurveTo(W, H, W - r, H);
+  ctx.lineTo(r, H); ctx.quadraticCurveTo(0, H, 0, H - r);
+  ctx.lineTo(0, r); ctx.quadraticCurveTo(0, 0, r, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.save();
+  ctx.clip();
+
+  // --- Soft circular highlights ---
+  ctx.globalAlpha = 0.18;
+  const circle1 = ctx.createRadialGradient(120, 80, 0, 120, 80, 180);
+  circle1.addColorStop(0, '#ffffff');
+  circle1.addColorStop(1, 'transparent');
+  ctx.fillStyle = circle1;
+  ctx.fillRect(0, 0, W, H);
+
+  const circle2 = ctx.createRadialGradient(480, 320, 0, 480, 320, 160);
+  circle2.addColorStop(0, '#ffffff');
+  circle2.addColorStop(1, 'transparent');
+  ctx.fillStyle = circle2;
+  ctx.fillRect(0, 0, W, H);
+  ctx.globalAlpha = 1.0;
+
+  // --- Decorative elements (stars, hearts, sparkles) ---
+  const rng = seededRandom(42);
+  const decoColors = [colorScheme.accent, '#ffb6c1', '#ffe066', '#b19cd9', '#90e0ef'];
+
+  // Draw small stars
+  function drawStar(cx, cy, size, color) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.35;
+    ctx.beginPath();
+    for (let i = 0; i < 5; i++) {
+      const angle = (i * 4 * Math.PI) / 5 - Math.PI / 2;
+      const method = i === 0 ? 'moveTo' : 'lineTo';
+      ctx[method](Math.cos(angle) * size, Math.sin(angle) * size);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  // Draw small hearts
+  function drawHeart(cx, cy, size, color) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.3;
+    ctx.beginPath();
+    ctx.moveTo(0, size * 0.3);
+    ctx.bezierCurveTo(-size, -size * 0.5, -size * 0.5, -size * 1.2, 0, -size * 0.5);
+    ctx.bezierCurveTo(size * 0.5, -size * 1.2, size, -size * 0.5, 0, size * 0.3);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  // Draw sparkle (4-pointed star)
+  function drawSparkle(cx, cy, size, color) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.4;
+    ctx.beginPath();
+    const pts = 4;
+    for (let i = 0; i < pts * 2; i++) {
+      const angle = (i * Math.PI) / pts - Math.PI / 2;
+      const rad = i % 2 === 0 ? size : size * 0.3;
+      ctx.lineTo(Math.cos(angle) * rad, Math.sin(angle) * rad);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  // Scatter decorations
+  for (let i = 0; i < 18; i++) {
+    const x = rng() * W;
+    const y = rng() * H;
+    const size = rng() * 10 + 5;
+    const color = decoColors[Math.floor(rng() * decoColors.length)];
+    const shape = Math.floor(rng() * 3);
+    if (shape === 0) drawStar(x, y, size, color);
+    else if (shape === 1) drawHeart(x, y, size, color);
+    else drawSparkle(x, y, size, color);
+  }
+
+  // --- Small dots scattered ---
+  ctx.globalAlpha = 0.2;
+  for (let i = 0; i < 30; i++) {
+    const x = rng() * W;
+    const y = rng() * H;
+    const rad = rng() * 3 + 1;
+    ctx.beginPath();
+    ctx.arc(x, y, rad, 0, Math.PI * 2);
+    ctx.fillStyle = decoColors[Math.floor(rng() * decoColors.length)];
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // --- Test title (top) ---
+  ctx.font = '600 18px "Noto Sans KR", sans-serif';
+  ctx.fillStyle = colorScheme.text;
+  ctx.globalAlpha = 0.7;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText(testTitle, W / 2, 28);
+  ctx.globalAlpha = 1;
+
+  // --- Emoji (large, center-top) ---
+  ctx.font = '80px serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(emoji, W / 2, 140);
+
+  // --- Type name (bold, below emoji) ---
+  ctx.font = '900 30px "Noto Sans KR", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  // Text shadow for readability
+  ctx.fillStyle = 'rgba(0,0,0,0.08)';
+  ctx.fillText(typeName, W / 2 + 1, 201);
+  ctx.fillStyle = colorScheme.text;
+  ctx.shadowColor = 'rgba(0,0,0,0.1)';
+  ctx.shadowBlur = 6;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 2;
+  ctx.fillText(typeName, W / 2, 200);
+  ctx.shadowColor = 'transparent';
+  ctx.shadowBlur = 0;
+
+  // --- Decorative line under type name ---
+  const textWidth = ctx.measureText(typeName).width;
+  const lineGrad = ctx.createLinearGradient(W / 2 - textWidth / 2, 0, W / 2 + textWidth / 2, 0);
+  lineGrad.addColorStop(0, 'transparent');
+  lineGrad.addColorStop(0.2, colorScheme.accent);
+  lineGrad.addColorStop(0.8, colorScheme.accent);
+  lineGrad.addColorStop(1, 'transparent');
+  ctx.strokeStyle = lineGrad;
+  ctx.lineWidth = 2;
+  ctx.globalAlpha = 0.5;
+  ctx.beginPath();
+  ctx.moveTo(W / 2 - textWidth / 2 - 10, 242);
+  ctx.lineTo(W / 2 + textWidth / 2 + 10, 242);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  // --- Subtitle / tagline area ---
+  ctx.font = '500 14px "Noto Sans KR", sans-serif';
+  ctx.fillStyle = colorScheme.text;
+  ctx.globalAlpha = 0.55;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText('심리테스트 결과', W / 2, 260);
+  ctx.globalAlpha = 1;
+
+  // --- Bottom decorative wave ---
+  ctx.globalAlpha = 0.12;
+  ctx.fillStyle = colorScheme.accent;
+  ctx.beginPath();
+  ctx.moveTo(0, H);
+  for (let x = 0; x <= W; x += 1) {
+    const y = H - 50 + Math.sin(x * 0.02) * 15 + Math.sin(x * 0.005) * 20;
+    ctx.lineTo(x, y);
+  }
+  ctx.lineTo(W, H);
+  ctx.closePath();
+  ctx.fill();
+  ctx.globalAlpha = 1;
+
+  // --- Watermark ---
+  ctx.font = '500 12px "Noto Sans KR", sans-serif';
+  ctx.fillStyle = colorScheme.text;
+  ctx.globalAlpha = 0.3;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText('심리테스트 - 나를 알아보는 시간', W / 2, H - 16);
+  ctx.globalAlpha = 1;
+
+  ctx.restore();
+
+  return canvas.toDataURL('image/png');
+}
+
+// ──────────────────────────────────────────────
+//  SCREEN MANAGEMENT
+// ──────────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const target = document.getElementById(id);
+  // re-trigger animation
+  target.style.animation = 'none';
+  target.offsetHeight; // reflow
+  target.style.animation = '';
+  target.classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ──────────────────────────────────────────────
+//  LOAD TESTS FROM SERVER + BUILT-IN
+// ──────────────────────────────────────────────
+let serverTests = [];
+let inactiveIds = [];
+
+async function fetchServerData() {
+  try {
+    const [testsRes, inactiveRes] = await Promise.all([
+      fetch('/api/tests').then(r => r.json()).catch(() => []),
+      fetch('/api/inactive').then(r => r.json()).catch(() => [])
+    ]);
+    serverTests = testsRes || [];
+    inactiveIds = inactiveRes || [];
+  } catch (e) {
+    serverTests = [];
+    inactiveIds = [];
+  }
+}
+
+function loadAllTests() {
+  const allTests = [...TESTS, ...serverTests];
+  return allTests.filter(t => !inactiveIds.includes(t.id));
+}
+
+// ──────────────────────────────────────────────
+//  RENDER MAIN PAGE
+// ──────────────────────────────────────────────
+function renderMain() {
+  const activeTests = loadAllTests();
+  const grid = document.getElementById('test-grid');
+  grid.innerHTML = activeTests.map((t, i) => `
+    <div class="test-card ${t.cardClass || ''}" style="background:${t.cardGradient || ''};animation-delay:${i * .08}s" onclick="startTestById('${t.id}')">
+      <span class="emoji">${t.emoji}</span>
+      <div class="title">${t.title}</div>
+      <div class="desc">${t.desc}</div>
+      <span class="badge">${t.badge} · ${t.questions.length}문항</span>
+    </div>
+  `).join('');
+}
+
+function startTestById(id) {
+  const allTests = loadAllTests();
+  const test = allTests.find(t => t.id === id);
+  if (!test) return;
+  currentTest = test;
+  currentQuestion = 0;
+  answers = [];
+  document.getElementById('test-title-display').textContent = currentTest.title;
+  showScreen('screen-test');
+  renderQuestion();
+}
+
+// startTest by index (kept for backward compat)
+function startTest(index) {
+  const allTests = loadAllTests();
+  if (allTests[index]) startTestById(allTests[index].id);
+}
+
+// ──────────────────────────────────────────────
+//  RENDER QUESTION
+// ──────────────────────────────────────────────
+function renderQuestion() {
+  const q = currentTest.questions[currentQuestion];
+  const total = currentTest.questions.length;
+  const pct = ((currentQuestion) / total) * 100;
+
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-text').textContent = `${currentQuestion + 1} / ${total}`;
+
+  const area = document.getElementById('question-area');
+  area.innerHTML = `
+    <div class="question-card">
+      <span class="question-number">Q${currentQuestion + 1}</span>
+      <div class="question-text">${q.text}</div>
+      <div class="choices">
+        ${q.choices.map((c, i) => `
+          <button class="choice-btn" onclick="selectChoice(${i})">${c.text}</button>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+// ──────────────────────────────────────────────
+//  SELECT CHOICE
+// ──────────────────────────────────────────────
+function selectChoice(index) {
+  const btns = document.querySelectorAll('.choice-btn');
+  btns.forEach(b => b.disabled = true);
+  btns[index].classList.add('selected');
+
+  const choice = currentTest.questions[currentQuestion].choices[index];
+  answers.push(choice.type);
+
+  setTimeout(() => {
+    currentQuestion++;
+    if (currentQuestion >= currentTest.questions.length) {
+      // fill progress to 100%
+      document.getElementById('progress-fill').style.width = '100%';
+      setTimeout(() => showResult(), 350);
+    } else {
+      renderQuestion();
+    }
+  }, 400);
+}
+
+// ──────────────────────────────────────────────
+//  CALCULATE & SHOW RESULT
+// ──────────────────────────────────────────────
+let currentResultType = null;
+
+function showResult(forceTestId, forceType) {
+  let testObj = currentTest;
+  let maxType;
+
+  if (forceTestId && forceType) {
+    const allTests = loadAllTests();
+    testObj = allTests.find(t => t.id === forceTestId);
+    if (!testObj || !testObj.results[forceType]) { goHome(); return; }
+    maxType = forceType;
+    currentTest = testObj;
+  } else {
+    const counts = {};
+    answers.forEach(a => counts[a] = (counts[a] || 0) + 1);
+    maxType = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+  }
+
+  currentResultType = maxType;
+  const result = testObj.results[maxType];
+  currentResultText = result.type;
+  const colorScheme = RESULT_COLOR_SCHEMES[maxType];
+
+  // Generate the canvas result image
+  generatedImageDataUrl = generateResultImage(result.emoji, result.type, testObj.title, colorScheme);
+
+  // Update URL with result params (without reload)
+  const shareUrl = `${location.origin}${location.pathname}?test=${testObj.id}&result=${maxType}`;
+  history.replaceState(null, '', `?test=${testObj.id}&result=${maxType}`);
+
+  const card = document.getElementById('result-card');
+  card.innerHTML = `
+    <div id="result-capture" style="text-align:center;">
+      <img src="${generatedImageDataUrl}" alt="${result.type}" class="result-img" />
+      <div class="result-desc">${result.desc}</div>
+      <div class="result-tags">
+        ${result.tags.map(t => `<span class="result-tag">${t}</span>`).join('')}
+      </div>
+    </div>
+    <div class="action-btns" style="margin-top:20px;">
+      <button class="action-btn btn-save-img" onclick="saveResultImage()">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        이미지 저장
+      </button>
+      <button class="action-btn btn-share" onclick="shareResult()">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+        결과 공유하기
+      </button>
+      <button class="action-btn btn-retry" onclick="retryTest()">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+        다시하기
+      </button>
+      <button class="action-btn btn-home" onclick="goHome()">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        목록으로
+      </button>
+    </div>
+  `;
+
+  showScreen('screen-result');
+  if (!forceTestId) launchConfetti();
+}
+
+// ──────────────────────────────────────────────
+//  ACTIONS
+// ──────────────────────────────────────────────
+function saveResultImage() {
+  if (!generatedImageDataUrl) {
+    showToast('이미지가 없어요 😢');
+    return;
+  }
+  const link = document.createElement('a');
+  link.download = `${currentTest.title}_결과.png`;
+  link.href = generatedImageDataUrl;
+  link.click();
+  showToast('이미지가 저장되었어요! 🖼️');
+}
+
+let currentResultText = '';
+
+function getShareUrl() {
+  return `${location.origin}${location.pathname}?test=${currentTest.id}&result=${currentResultType}`;
+}
+
+function getShareText() {
+  return `[${currentTest.title}] 나의 결과: ${currentResultText}\n나도 테스트 해보기!`;
+}
+
+function shareResult() {
+  const url = getShareUrl();
+  document.getElementById('share-url-input').value = url;
+  document.getElementById('share-overlay').classList.add('show');
+}
+
+function closeShareSheet() {
+  document.getElementById('share-overlay').classList.remove('show');
+}
+
+function shareNative() {
+  const url = getShareUrl();
+  const text = getShareText();
+  if (navigator.share) {
+    navigator.share({ title: currentTest.title, text: text, url: url })
+      .then(() => closeShareSheet()).catch(() => {});
+  } else {
+    // PC 브라우저 fallback: URL 복사
+    copyShareUrl();
+  }
+}
+
+function shareToTwitter() {
+  const url = getShareUrl();
+  const text = getShareText();
+  window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank', 'width=600,height=400');
+  closeShareSheet();
+}
+
+function shareToFacebook() {
+  const url = getShareUrl();
+  window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank', 'width=600,height=400');
+  closeShareSheet();
+}
+
+function shareToLine() {
+  const url = getShareUrl();
+  const text = getShareText();
+  const lineUrl = `https://line.me/R/share?text=${encodeURIComponent(text + '\n' + url)}`;
+  window.open(lineUrl, '_blank', 'width=600,height=400');
+  closeShareSheet();
+}
+
+function copyShareUrl() {
+  const url = getShareUrl();
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(url).then(() => {
+      showToast('URL이 복사되었어요! 📋');
+      closeShareSheet();
+    }).catch(() => fallbackCopy(url));
+  } else {
+    fallbackCopy(url);
+  }
+}
+
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select();
+  document.execCommand('copy'); document.body.removeChild(ta);
+  showToast('URL이 복사되었어요! 📋');
+  closeShareSheet();
+}
+
+function retryTest() {
+  const idx = TESTS.indexOf(currentTest);
+  startTest(idx);
+}
+
+function goHome() {
+  currentTest = null;
+  currentResultType = null;
+  generatedImageDataUrl = null;
+  history.replaceState(null, '', location.pathname);
+  showScreen('screen-main');
+}
+
+// ──────────────────────────────────────────────
+//  TOAST
+// ──────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ──────────────────────────────────────────────
+//  CONFETTI 🎉
+// ──────────────────────────────────────────────
+function launchConfetti() {
+  const canvas = document.getElementById('confetti');
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const colors = ['#ff6b9d','#c44dff','#4d79ff','#36d6b5','#ffc940','#ff8c42','#f06292','#ba68c8','#64b5f6'];
+  const pieces = [];
+  for (let i = 0; i < 100; i++) {
+    pieces.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height - canvas.height,
+      w: Math.random() * 10 + 5,
+      h: Math.random() * 6 + 3,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      vy: Math.random() * 3 + 2,
+      vx: (Math.random() - .5) * 2,
+      rot: Math.random() * 360,
+      rv: (Math.random() - .5) * 8,
+      opacity: 1
+    });
+  }
+
+  let frame = 0;
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    let alive = false;
+    pieces.forEach(p => {
+      if (p.opacity <= 0) return;
+      alive = true;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.04;
+      p.rot += p.rv;
+      if (frame > 60) p.opacity -= 0.008;
+
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot * Math.PI / 180);
+      ctx.globalAlpha = Math.max(0, p.opacity);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.restore();
+    });
+    frame++;
+    if (alive) requestAnimationFrame(draw);
+    else ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+  draw();
+}
+
+// ──────────────────────────────────────────────
+//  INIT
+// ──────────────────────────────────────────────
+(async function init() {
+  await fetchServerData();
+  renderMain();
+
+  // Check URL params for shared result
+  const params = new URLSearchParams(location.search);
+  const testId = params.get('test');
+  const resultType = params.get('result');
+  if (testId && resultType) {
+    showResult(testId, resultType);
+  }
+})();
+</script>
+</body>
+</html>
