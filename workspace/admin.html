@@ -402,6 +402,34 @@ textarea {
 </head>
 <body>
 
+<!-- Password Gate -->
+<div id="pw-gate" style="position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#e0c3fc 0%,#fbc2eb 50%,#a1c4fd 100%);display:flex;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:24px;padding:40px 32px;box-shadow:0 12px 40px rgba(0,0,0,0.15);text-align:center;max-width:340px;width:90%;">
+    <div style="font-size:48px;margin-bottom:12px;">🔒</div>
+    <h2 style="font-family:'Noto Sans KR',sans-serif;margin-bottom:8px;color:#333;">관리자 인증</h2>
+    <p style="font-family:'Noto Sans KR',sans-serif;font-size:14px;color:#888;margin-bottom:20px;">비밀번호를 입력해주세요</p>
+    <input id="pw-input" type="password" placeholder="비밀번호" style="width:100%;padding:14px 16px;border:2px solid #e0d6f0;border-radius:14px;font-size:16px;font-family:'Noto Sans KR',sans-serif;outline:none;text-align:center;margin-bottom:12px;" onkeydown="if(event.key==='Enter')checkPw()">
+    <div id="pw-error" style="color:#ff4757;font-size:13px;margin-bottom:12px;display:none;font-family:'Noto Sans KR',sans-serif;">비밀번호가 틀렸습니다</div>
+    <button onclick="checkPw()" style="width:100%;padding:14px;background:linear-gradient(135deg,#c44dff,#4d79ff);color:#fff;border:none;border-radius:14px;font-size:16px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;">입장</button>
+  </div>
+</div>
+<script>
+function checkPw(){
+  var v=document.getElementById('pw-input').value;
+  if(v==='1004'){
+    document.getElementById('pw-gate').style.display='none';
+    sessionStorage.setItem('admin_auth','1');
+  } else {
+    document.getElementById('pw-error').style.display='block';
+    document.getElementById('pw-input').value='';
+    document.getElementById('pw-input').focus();
+  }
+}
+if(sessionStorage.getItem('admin_auth')==='1'){
+  document.getElementById('pw-gate').style.display='none';
+}
+</script>
+
 <div class="bg-blobs"><span></span><span></span><span></span></div>
 
 <div class="container">
