@@ -511,6 +511,18 @@ if(sessionStorage.getItem('admin_auth')==='1'){
       <div id="questions-builder"></div>
     </div>
 
+    <!-- Reserve Questions -->
+    <div class="form-card">
+      <h3 style="font-size:16px;font-weight:700;color:#4a3878;margin-bottom:4px;">예비 문항 (동점 방지)</h3>
+      <p style="font-size:12px;color:#9b8ec4;margin-bottom:16px;">동점일 때 자동으로 추가 출제됩니다. 선택지는 동점이 예상되는 유형 2~3개만 넣으세요.</p>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+        <label style="font-size:13px;font-weight:600;color:#4a3878;">예비 문항 수</label>
+        <input type="range" id="f-reserve-count" min="0" max="5" value="2" style="flex:1;" oninput="updateReserveCount(this.value)">
+        <span id="f-reserve-display" style="font-weight:700;color:var(--purple);font-size:18px;">2</span>
+      </div>
+      <div id="reserve-builder"></div>
+    </div>
+
     <!-- Results -->
     <div class="form-card">
       <h3 id="results-heading" style="font-size:16px;font-weight:700;color:#4a3878;margin-bottom:16px;">결과 유형</h3>
@@ -791,6 +803,7 @@ const COLOR_PRESETS = [
 let selectedColor = COLOR_PRESETS[0].name;
 let questionCount = 4;
 let resultTypeCount = 4;
+let reserveCount = 2;
 let editingTestId = null;
 
 function getTypeLabels(count) {
@@ -1084,6 +1097,42 @@ function renderQuestionsBuilder() {
 }
 
 // ──────────────────────────────────────────────
+//  RESERVE QUESTIONS BUILDER
+// ──────────────────────────────────────────────
+function updateReserveCount(val) {
+  reserveCount = parseInt(val);
+  document.getElementById('f-reserve-display').textContent = val;
+  renderReserveBuilder();
+}
+
+function renderReserveBuilder() {
+  const container = document.getElementById('reserve-builder');
+  if (!container) return;
+  const types = getTypeLabels(resultTypeCount);
+  let html = '';
+  for (let i = 0; i < reserveCount; i++) {
+    html += `
+      <div class="question-block reserve-block" data-r-index="${i}" style="border-left:3px solid var(--yellow);">
+        <div class="q-header">
+          <span class="q-number" style="background:var(--yellow);color:#fff;">예비${i + 1}</span>
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <input type="text" class="r-q-text-input" placeholder="예비 질문을 입력하세요">
+        </div>
+        <p style="font-size:11px;color:#9b8ec4;margin-bottom:8px;">동점 유형 선택지만 2~3개 입력하세요 (빈 칸은 무시됨)</p>
+        ${types.map((t, j) => `
+          <div class="choice-row">
+            <div class="type-label type-${t}">${t}</div>
+            <input type="text" class="r-choice-input-${j}" placeholder="${t} 유형 (선택)" value="">
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+  container.innerHTML = html;
+}
+
+// ──────────────────────────────────────────────
 //  RESULTS BUILDER
 // ──────────────────────────────────────────────
 function renderResultsBuilder() {
@@ -1209,11 +1258,29 @@ function collectFormData() {
     };
   }
 
+  // Collect reserve questions
+  const reserveQuestions = [];
+  const rqBlocks = document.querySelectorAll('#reserve-builder .reserve-block');
+  const types = getTypeLabels(resultTypeCount);
+  for (let i = 0; i < rqBlocks.length; i++) {
+    const qText = rqBlocks[i].querySelector('.r-q-text-input').value.trim();
+    if (!qText) continue;  // 빈 예비문항은 건너뜀
+    const choices = [];
+    for (let j = 0; j < types.length; j++) {
+      const cText = rqBlocks[i].querySelector(`.r-choice-input-${j}`).value.trim();
+      if (cText) choices.push({ text: cText, type: types[j] });
+    }
+    if (choices.length >= 2) {
+      reserveQuestions.push({ text: qText, choices });
+    }
+  }
+
   return {
     id: editingTestId || 'custom_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
     emoji, title, desc,
     cardClass: selectedColor,
-    badge, questions, results
+    badge, questions, results,
+    reserveQuestions
   };
 }
 
@@ -1241,9 +1308,13 @@ function clearForm() {
   resultTypeCount = 4;
   document.getElementById('f-rcount').value = 4;
   document.getElementById('f-rcount-display').textContent = '4';
+  reserveCount = 2;
+  document.getElementById('f-reserve-count').value = 2;
+  document.getElementById('f-reserve-display').textContent = '2';
   selectedColor = COLOR_PRESETS[0].name;
   renderColorPresets();
   renderQuestionsBuilder();
+  renderReserveBuilder();
   renderResultsBuilder();
   document.getElementById('preview-area').style.display = 'none';
 }
@@ -1303,6 +1374,34 @@ function fillFormFromData(data) {
     });
   }
 
+  // Reserve questions
+  if (data.reserveQuestions && data.reserveQuestions.length > 0) {
+    reserveCount = data.reserveQuestions.length;
+  } else {
+    reserveCount = 0;
+  }
+  document.getElementById('f-reserve-count').value = reserveCount;
+  document.getElementById('f-reserve-display').textContent = reserveCount;
+  renderReserveBuilder();
+  if (data.reserveQuestions) {
+    const types = getTypeLabels(resultTypeCount);
+    const rqBlocks = document.querySelectorAll('#reserve-builder .reserve-block');
+    data.reserveQuestions.forEach((q, i) => {
+      if (i < rqBlocks.length) {
+        rqBlocks[i].querySelector('.r-q-text-input').value = q.text || '';
+        if (q.choices) {
+          q.choices.forEach(c => {
+            const tIdx = types.indexOf(c.type);
+            if (tIdx !== -1) {
+              const input = rqBlocks[i].querySelector(`.r-choice-input-${tIdx}`);
+              if (input) input.value = c.text || '';
+            }
+          });
+        }
+      }
+    });
+  }
+
   // Results
   renderResultsBuilder();
   if (data.results) {
@@ -1343,6 +1442,8 @@ function generatePrompt() {
     return `    "${t}": { "emoji": "...", "type": "...", "desc": "...", "tags": ["..."] }`;
   }).join(',\n');
 
+  const reserveCount = Math.max(2, Math.ceil(parseInt(qCount) * 0.3));
+
   const prompt = `당신은 재미있고 흥미로운 심리테스트를 만드는 전문가입니다.
 
 아래 주제로 심리테스트를 만들어주세요.
@@ -1351,9 +1452,13 @@ function generatePrompt() {
 ${topic}
 
 【요구사항】
-- 질문 개수: ${qCount}개
+- 메인 질문: ${qCount}개
+- 예비 문항: ${reserveCount}개 (동점 방지용, reserveQuestions에 넣기)
 - 결과 유형 수: ${rCount}개 (${typeListStr} 유형)
-- 각 질문에는 ${rCount}개의 선택지가 있어야 합니다 (${typeListStr} 유형)
+- 선택지 규칙:
+  · 각 질문의 선택지는 2~${rCount}개 사이로 자유롭게 구성 (모든 유형을 매 질문에 넣을 필요 없음)
+  · 단, 전체 질문을 통틀어 모든 유형(${typeListStr})이 골고루 등장해야 함
+  · 예비문항의 선택지는 2~3개로 간결하게, 동점이 자주 나는 유형 위주로 구성
 - 질문은 재미있고, 공감 가능하며, 일상적인 상황이면 좋겠습니다
 - 결과는 ${rCount}가지 유형 (${typeListStr})으로 나뉘어야 합니다
 - 각 결과 유형에는 이모지, 유형 이름, 설명, 해시태그가 포함되어야 합니다
@@ -1374,7 +1479,17 @@ ${topic}
     {
       "text": "질문 내용?",
       "choices": [
-${choicesExample}
+        { "text": "선택지 내용", "type": "A" },
+        { "text": "선택지 내용", "type": "C" }
+      ]
+    }
+  ],
+  "reserveQuestions": [
+    {
+      "text": "예비 질문 내용?",
+      "choices": [
+        { "text": "선택지 내용", "type": "A" },
+        { "text": "선택지 내용", "type": "B" }
       ]
     }
   ],
@@ -1437,7 +1552,14 @@ function validateTestData(data) {
   for (let i = 0; i < data.questions.length; i++) {
     const q = data.questions[i];
     if (!q.text) throw new Error(`질문 ${i + 1}에 text가 없습니다.`);
-    if (!q.choices || q.choices.length !== resultKeys.length) throw new Error(`질문 ${i + 1}에 선택지가 ${resultKeys.length}개여야 합니다.`);
+    if (!q.choices || q.choices.length < 2) throw new Error(`질문 ${i + 1}에 선택지가 최소 2개 필요합니다.`);
+  }
+  if (data.reserveQuestions) {
+    for (let i = 0; i < data.reserveQuestions.length; i++) {
+      const q = data.reserveQuestions[i];
+      if (!q.text) throw new Error(`예비문항 ${i + 1}에 text가 없습니다.`);
+      if (!q.choices || q.choices.length < 2) throw new Error(`예비문항 ${i + 1}에 선택지가 최소 2개 필요합니다.`);
+    }
   }
   for (const type of resultKeys) {
     if (!data.results[type]) throw new Error(`${type} 유형 결과가 없습니다.`);
@@ -1604,6 +1726,7 @@ async function init() {
   await renderTestList();
   renderColorPresets();
   renderQuestionsBuilder();
+  renderReserveBuilder();
   renderResultsBuilder();
 }
 

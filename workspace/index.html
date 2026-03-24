@@ -648,6 +648,7 @@ let currentTest = null;
 let currentQuestion = 0;
 let answers = [];
 let generatedImageDataUrl = null;
+let activeQuestions = [];  // 실제 출제될 질문 목록 (예비문항 포함 동적 구성)
 
 // ──────────────────────────────────────────────
 //  COLOR SCHEMES FOR RESULT TYPES
@@ -656,8 +657,27 @@ const RESULT_COLOR_SCHEMES = {
   A: { gradient: ['#ff9a9e', '#fecfef'], accent: '#ff6b9d', text: '#c0395e' },
   B: { gradient: ['#c3aed6', '#e8d5f5'], accent: '#a855f7', text: '#6b21a8' },
   C: { gradient: ['#a8edea', '#c2f9d0'], accent: '#36d6b5', text: '#0d7d6c' },
-  D: { gradient: ['#ffecd2', '#fcb69f'], accent: '#ffc940', text: '#b8630a' }
+  D: { gradient: ['#ffecd2', '#fcb69f'], accent: '#ffc940', text: '#b8630a' },
+  E: { gradient: ['#667eea', '#b3c6ff'], accent: '#4d79ff', text: '#2a4ecf' },
+  F: { gradient: ['#fbc2eb', '#f9d1e8'], accent: '#f093fb', text: '#a83279' },
+  G: { gradient: ['#a1ffce', '#c2ffd8'], accent: '#38ef7d', text: '#0e8c4a' },
+  H: { gradient: ['#ffd1a0', '#ffe4c4'], accent: '#ff8c42', text: '#b35c1e' },
+  I: { gradient: ['#e0c3fc', '#d5b8ff'], accent: '#c44dff', text: '#7b2ea8' },
+  J: { gradient: ['#ffeaa7', '#ffe082'], accent: '#fdcb6e', text: '#b8860b' },
+  K: { gradient: ['#74b9ff', '#a4d4ff'], accent: '#0984e3', text: '#065a9e' },
+  L: { gradient: ['#fd79a8', '#fab1c4'], accent: '#e84393', text: '#a82d68' },
+  M: { gradient: ['#55efc4', '#88f5d8'], accent: '#00b894', text: '#007a63' },
+  N: { gradient: ['#fdcb6e', '#ffe4a0'], accent: '#e17055', text: '#b35640' },
+  O: { gradient: ['#6c5ce7', '#a29bfe'], accent: '#6c5ce7', text: '#4834d4' },
+  P: { gradient: ['#ff7675', '#ffb3b3'], accent: '#d63031', text: '#a82525' },
+  Q: { gradient: ['#00cec9', '#81ecec'], accent: '#00b5ad', text: '#008c85' },
+  R: { gradient: ['#e056a0', '#f3a4cc'], accent: '#e056a0', text: '#a83d74' },
+  S: { gradient: ['#78e08f', '#b8e6c4'], accent: '#38ada9', text: '#267d7a' },
+  T: { gradient: ['#f8a5c2', '#f7c5d5'], accent: '#f78fb3', text: '#b5446e' },
 };
+function getColorScheme(type) {
+  return RESULT_COLOR_SCHEMES[type] || { gradient: ['#c3aed6', '#e8d5f5'], accent: '#a855f7', text: '#6b21a8' };
+}
 
 // ──────────────────────────────────────────────
 //  SEEDED RANDOM (consistent decorations)
@@ -941,6 +961,14 @@ function startTestById(id) {
   currentTest = test;
   currentQuestion = 0;
   answers = [];
+  // 메인 질문 셔플 + 예비문항은 별도 보관
+  activeQuestions = [...test.questions].sort(() => Math.random() - 0.5);
+  if (test.reserveQuestions && test.reserveQuestions.length > 0) {
+    // 예비문항은 뒤에 대기 (필요할 때 삽입)
+    currentTest._reserves = [...test.reserveQuestions].sort(() => Math.random() - 0.5);
+  } else {
+    currentTest._reserves = [];
+  }
   document.getElementById('test-title-display').textContent = currentTest.title;
   showScreen('screen-test');
   renderQuestion();
@@ -958,8 +986,8 @@ function startTest(index) {
 let shuffledChoices = [];
 
 function renderQuestion() {
-  const q = currentTest.questions[currentQuestion];
-  const total = currentTest.questions.length;
+  const q = activeQuestions[currentQuestion];
+  const total = activeQuestions.length;
   const pct = ((currentQuestion) / total) * 100;
 
   document.getElementById('progress-fill').style.width = pct + '%';
@@ -982,6 +1010,27 @@ function renderQuestion() {
   `;
 }
 
+// 동점 감지 → 예비문항 삽입
+function checkAndInsertTiebreaker() {
+  if (!currentTest._reserves || currentTest._reserves.length === 0) return;
+  const remaining = activeQuestions.length - currentQuestion;
+  if (remaining > 1) return;  // 마지막 문항 직전에만 체크
+  const counts = {};
+  answers.forEach(a => counts[a] = (counts[a] || 0) + 1);
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  if (sorted.length >= 2 && sorted[0][1] === sorted[1][1]) {
+    // 동점! 예비문항 추가
+    const tiedTypes = sorted.filter(e => e[1] === sorted[0][1]).map(e => e[0]);
+    // 동점 유형을 포함하는 예비문항 우선
+    let bestIdx = currentTest._reserves.findIndex(q =>
+      q.choices.some(c => tiedTypes.includes(c.type))
+    );
+    if (bestIdx === -1) bestIdx = 0;
+    const extra = currentTest._reserves.splice(bestIdx, 1)[0];
+    activeQuestions.push(extra);
+  }
+}
+
 // ──────────────────────────────────────────────
 //  SELECT CHOICE
 // ──────────────────────────────────────────────
@@ -995,7 +1044,8 @@ function selectChoice(index) {
 
   setTimeout(() => {
     currentQuestion++;
-    if (currentQuestion >= currentTest.questions.length) {
+    checkAndInsertTiebreaker();
+    if (currentQuestion >= activeQuestions.length) {
       // fill progress to 100%
       document.getElementById('progress-fill').style.width = '100%';
       setTimeout(() => showResult(), 350);
@@ -1023,13 +1073,22 @@ function showResult(forceTestId, forceType) {
   } else {
     const counts = {};
     answers.forEach(a => counts[a] = (counts[a] || 0) + 1);
-    maxType = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    // 동점 시 랜덤 선택
+    const maxScore = sorted[0][1];
+    const tied = sorted.filter(e => e[1] === maxScore);
+    maxType = tied[Math.floor(Math.random() * tied.length)][0];
+    // results에 해당 type이 없으면 첫 번째 결과 사용
+    if (!testObj.results[maxType]) {
+      maxType = Object.keys(testObj.results)[0];
+    }
   }
 
   currentResultType = maxType;
   const result = testObj.results[maxType];
+  if (!result) { goHome(); return; }
   currentResultText = result.type;
-  const colorScheme = RESULT_COLOR_SCHEMES[maxType];
+  const colorScheme = getColorScheme(maxType);
 
   // Generate the canvas result image
   generatedImageDataUrl = generateResultImage(result.emoji, result.type, testObj.title, colorScheme);
