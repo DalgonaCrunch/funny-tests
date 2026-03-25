@@ -18,6 +18,7 @@ import uuid
 PORT = int(os.environ.get('PORT', 8080))
 SUPABASE_URL = os.environ.get('SUPABASE_URL', '')
 SUPABASE_KEY = os.environ.get('SUPABASE_KEY', '')
+ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY', '')
 
 # ── Supabase helpers ──────────────────────────────
 
@@ -155,6 +156,79 @@ def save_trash(data):
         with open(os.path.join(DATA_DIR, 'trash.json'), 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False)
 
+# ── AI Test Generation ────────────────────────────
+
+def ai_generate_test(params):
+    """Claude API를 호출하여 심리테스트 JSON 생성"""
+    if not ANTHROPIC_API_KEY:
+        return {'error': 'AI 기능이 설정되지 않았습니다. 서버에 ANTHROPIC_API_KEY 환경변수를 설정해주세요.'}
+
+    topic = params.get('topic', '')
+    q_count = params.get('qCount', 8)
+    r_count = params.get('rCount', 4)
+
+    if not topic:
+        return {'error': '주제를 입력해주세요.'}
+
+    type_labels = [chr(65 + i) for i in range(r_count)]
+    type_list = ', '.join(type_labels)
+    reserve_count = max(2, int(q_count * 0.3))
+
+    prompt = f"""아래 주제로 심리테스트를 만들어주세요.
+
+주제: {topic}
+
+요구사항:
+- 메인 질문: {q_count}개
+- 예비 문항: {reserve_count}개 (동점 방지용, reserveQuestions에 넣기)
+- 결과 유형 수: {r_count}개 ({type_list} 유형)
+- 선택지 규칙: 각 질문 2~{r_count}개 선택지, 전체적으로 모든 유형 골고루 등장
+- 예비문항 선택지는 2~3개로 간결하게
+- 질문은 재미있고, 공감 가능하며, 일상적인 상황
+- 한국어로 작성, 반말(~해요) 말투
+- cardClass는 다음 중 하나: card-love, card-stress, card-personality, card-sunset, card-ocean, card-rose, card-forest, card-night, card-coral, card-sky
+
+반드시 유효한 JSON만 출력하세요. 다른 텍스트 없이 JSON만 응답하세요.
+
+JSON 형식:
+{{"emoji":"🎯","title":"제목","desc":"설명","badge":"카테고리","cardClass":"card-love","questions":[{{"text":"질문?","choices":[{{"text":"선택지","type":"A"}}]}}],"reserveQuestions":[{{"text":"예비질문?","choices":[{{"text":"선택지","type":"A"}}]}}],"results":{{{",".join(f'"{t}":{{"emoji":"","type":"유형이름","desc":"설명","tags":["#태그"]}}' for t in type_labels)}}}}}"""
+
+    try:
+        req_body = json.dumps({
+            'model': 'claude-sonnet-4-20250514',
+            'max_tokens': 4096,
+            'messages': [{'role': 'user', 'content': prompt}]
+        }).encode('utf-8')
+
+        req = Request(
+            'https://api.anthropic.com/v1/messages',
+            data=req_body,
+            headers={
+                'Content-Type': 'application/json',
+                'x-api-key': ANTHROPIC_API_KEY,
+                'anthropic-version': '2023-06-01',
+            },
+            method='POST'
+        )
+
+        with urlopen(req, timeout=60) as resp:
+            result = json.loads(resp.read().decode('utf-8'))
+
+        text = result['content'][0]['text'].strip()
+
+        # Extract JSON from markdown blocks if present
+        import re
+        m = re.search(r'```(?:json)?\s*([\s\S]*?)```', text)
+        if m:
+            text = m.group(1).strip()
+
+        data = json.loads(text)
+        return data
+
+    except Exception as e:
+        return {'error': f'AI 생성 실패: {str(e)}'}
+
+
 # ── HTTP Handler ──────────────────────────────────
 
 class AppHandler(SimpleHTTPRequestHandler):
@@ -191,6 +265,15 @@ class AppHandler(SimpleHTTPRequestHandler):
                 return
             save_trash(body)
             self._json_response({'ok': True})
+        elif parsed.path == '/api/ai-generate':
+            body = self._read_body()
+            if body is None:
+                return
+            result = ai_generate_test(body)
+            if 'error' in result:
+                self._json_response(result, 500)
+            else:
+                self._json_response(result)
         else:
             self._json_response({'error': 'Not found'}, 404)
 

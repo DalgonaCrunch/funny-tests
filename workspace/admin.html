@@ -571,7 +571,7 @@ if(sessionStorage.getItem('admin_auth')==='1'){
     <!-- AI Mode Tabs -->
     <div class="ai-mode-tabs">
       <button class="ai-mode-btn active" onclick="switchAiMode('prompt')">프롬프트 복사</button>
-      <button class="ai-mode-btn" onclick="switchAiMode('api')">API Key 모드</button>
+      <button class="ai-mode-btn" onclick="switchAiMode('api')">AI 자동 생성</button>
     </div>
 
     <!-- Prompt Copy Mode -->
@@ -594,17 +594,13 @@ if(sessionStorage.getItem('admin_auth')==='1'){
       </div>
     </div>
 
-    <!-- API Key Mode -->
+    <!-- Server AI Generation Mode -->
     <div id="ai-panel-api" class="ai-panel">
       <div class="form-card">
-        <div class="form-group">
-          <label>Anthropic Claude API Key</label>
-          <input type="password" id="ai-api-key" placeholder="sk-ant-...">
-          <p style="font-size:11px;color:#9b8ec4;margin-top:6px;">
-            API Key는 브라우저에서 직접 호출하며 서버에 저장되지 않습니다.
-          </p>
-        </div>
-        <button class="btn btn-primary" onclick="callAiApi()" id="ai-api-btn" style="width:100%;">
+        <p style="font-size:13px;color:#7b6fa0;line-height:1.7;margin-bottom:16px;">
+          서버에서 AI가 직접 테스트를 생성합니다. 주제만 입력하면 자동으로 만들어져요!
+        </p>
+        <button class="btn btn-primary" onclick="callServerAiGenerate()" id="ai-api-btn" style="width:100%;">
           AI로 자동 생성
         </button>
         <div id="ai-api-status" style="margin-top:12px;font-size:13px;color:#9b8ec4;text-align:center;"></div>
@@ -1692,16 +1688,11 @@ function validateTestData(data) {
 // ──────────────────────────────────────────────
 //  AI: API CALL (Anthropic Claude)
 // ──────────────────────────────────────────────
-async function callAiApi() {
-  const apiKey = document.getElementById('ai-api-key').value.trim();
+async function callServerAiGenerate() {
   const topic = document.getElementById('ai-topic').value.trim();
   const qCount = document.getElementById('ai-qcount').value;
   const rCount = document.getElementById('ai-rcount').value;
 
-  if (!apiKey) {
-    showToast('API Key를 입력해주세요.');
-    return;
-  }
   if (!topic) {
     showToast('테스트 주제를 입력해주세요.');
     return;
@@ -1711,65 +1702,24 @@ async function callAiApi() {
   const status = document.getElementById('ai-api-status');
   btn.disabled = true;
   btn.textContent = '생성 중...';
-  status.textContent = 'AI가 테스트를 생성하고 있습니다. 잠시만 기다려주세요...';
-
-  const typeLabels = getTypeLabels(parseInt(rCount));
-  const typeListStr = typeLabels.join(', ');
-  const choicesJson = typeLabels.map(t => `{"text":"선택지","type":"${t}"}`).join(',');
-  const resultsJson = typeLabels.map(t => `"${t}":{"emoji":"","type":"","desc":"","tags":[]}`).join(',');
-
-  const systemPrompt = '당신은 재미있고 흥미로운 심리테스트를 만드는 전문가입니다. 반드시 유효한 JSON만 출력하세요. 다른 텍스트는 포함하지 마세요.';
-
-  const userPrompt = `아래 주제로 심리테스트를 만들어주세요.
-
-주제: ${topic}
-
-요구사항:
-- 질문 개수: ${qCount}개
-- 결과 유형 수: ${rCount}개 (${typeListStr} 유형)
-- 각 질문에는 ${rCount}개의 선택지 (${typeListStr} 유형)
-- 질문은 재미있고, 공감 가능하며, 일상적인 상황
-- 결과는 ${rCount}가지 유형 (${typeListStr})
-- 한국어로 작성, 반말(~해요) 말투
-- cardClass는 다음 중 하나: card-love, card-stress, card-personality, card-sunset, card-ocean, card-rose, card-forest, card-night, card-coral, card-sky
-
-JSON 형식:
-{"emoji":"🎯","title":"제목","desc":"설명","badge":"카테고리","cardClass":"card-love","questions":[{"text":"질문?","choices":[${choicesJson}]}],"results":{${resultsJson}}}`;
+  status.textContent = 'AI가 테스트를 생성하고 있습니다. 최대 1분 정도 걸릴 수 있어요...';
+  status.style.color = '#9b8ec4';
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('/api/ai-generate', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 4096,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: userPrompt }]
-      })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ topic, qCount: parseInt(qCount), rCount: parseInt(rCount) })
     });
 
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error(err.error?.message || `API 오류 (${response.status})`);
+    const result = await response.json();
+    if (!response.ok || result.error) {
+      throw new Error(result.error || `서버 오류 (${response.status})`);
     }
 
-    const result = await response.json();
-    let text = result.content[0].text.trim();
-
-    // Extract JSON from potential markdown blocks
-    const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (jsonMatch) text = jsonMatch[1].trim();
-
-    const data = JSON.parse(text);
-    validateTestData(data);
-    fillFormFromData(data);
-
-    status.textContent = '생성 완료! 폼을 확인해주세요.';
+    validateTestData(result);
+    fillFormFromData(result);
+    status.textContent = '생성 완료! 폼을 확인 후 저장해주세요.';
     status.style.color = '#0d7d6c';
   } catch (e) {
     status.textContent = '오류: ' + e.message;
