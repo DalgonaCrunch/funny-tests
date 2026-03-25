@@ -1121,14 +1121,34 @@ function showScreen(id) {
 let serverTests = [];
 let inactiveIds = [];
 
+// ── Supabase Direct Access ──
+const SB_URL = 'https://lpxucsxwkdhgkqjmujxv.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxweHVjc3h3a2RoZ2txam11anh2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNjE2NDcsImV4cCI6MjA4OTkzNzY0N30.rDBSJ3l1HbQnjh6BuxsOdzGPd4ftQ7tdyV6TEodImcw';
+
+async function sbFetch(method, table, params, body) {
+  let url = `${SB_URL}/rest/v1/${table}`;
+  if (params) url += `?${params}`;
+  const headers = {
+    'apikey': SB_KEY,
+    'Authorization': `Bearer ${SB_KEY}`,
+    'Content-Type': 'application/json',
+    'Prefer': 'return=representation'
+  };
+  const opts = { method, headers };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(url, opts);
+  if (method === 'DELETE') return null;
+  return res.json();
+}
+
 async function fetchServerData() {
   try {
-    const [testsRes, inactiveRes] = await Promise.all([
-      fetch('/api/tests').then(r => r.json()).catch(() => []),
-      fetch('/api/inactive').then(r => r.json()).catch(() => [])
+    const [testsRows, inactiveRows] = await Promise.all([
+      sbFetch('GET', 'tests', 'select=data&order=created_at.asc').catch(() => []),
+      sbFetch('GET', 'app_config', 'key=eq.inactive&select=value').catch(() => [])
     ]);
-    serverTests = testsRes || [];
-    inactiveIds = inactiveRes || [];
+    serverTests = (testsRows || []).map(r => r.data);
+    inactiveIds = (inactiveRows && inactiveRows.length > 0) ? (inactiveRows[0].value || []) : [];
   } catch (e) {
     serverTests = [];
     inactiveIds = [];
@@ -1535,11 +1555,18 @@ function launchConfetti() {
 // ──────────────────────────────────────────────
 async function recordStat(testId, resultType) {
   try {
-    await fetch('/api/stats', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ testId, type: resultType })
-    });
+    // Load current stats, increment, save back
+    const rows = await sbFetch('GET', 'app_config', 'key=eq.stats&select=value');
+    let allStats = (rows && rows.length > 0) ? (rows[0].value || {}) : {};
+    if (!allStats[testId]) allStats[testId] = {};
+    allStats[testId][resultType] = (allStats[testId][resultType] || 0) + 1;
+    // Upsert
+    const existing = rows && rows.length > 0;
+    if (existing) {
+      await sbFetch('PATCH', 'app_config', 'key=eq.stats', { value: allStats });
+    } else {
+      await sbFetch('POST', 'app_config', '', { key: 'stats', value: allStats });
+    }
   } catch (e) { /* ignore */ }
 }
 
@@ -1547,8 +1574,9 @@ async function loadAndRenderStats(testObj, myType) {
   const area = document.getElementById('stats-area');
   if (!area) return;
   try {
-    const res = await fetch(`/api/stats?testId=${encodeURIComponent(testObj.id)}`);
-    const stats = await res.json();
+    const rows = await sbFetch('GET', 'app_config', 'key=eq.stats&select=value');
+    const allStats = (rows && rows.length > 0) ? (rows[0].value || {}) : {};
+    const stats = allStats[testObj.id] || {};
     const resultKeys = Object.keys(testObj.results);
     const total = resultKeys.reduce((sum, k) => sum + (stats[k] || 0), 0);
     if (total === 0) { area.innerHTML = ''; return; }

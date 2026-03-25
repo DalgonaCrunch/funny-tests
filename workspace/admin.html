@@ -568,43 +568,21 @@ if(sessionStorage.getItem('admin_auth')==='1'){
       </div>
     </div>
 
-    <!-- AI Mode Tabs -->
-    <div class="ai-mode-tabs">
-      <button class="ai-mode-btn active" onclick="switchAiMode('prompt')">프롬프트 복사</button>
-      <button class="ai-mode-btn" onclick="switchAiMode('api')">AI 자동 생성</button>
-    </div>
-
-    <!-- Prompt Copy Mode -->
-    <div id="ai-panel-prompt" class="ai-panel active">
-      <div class="form-card">
-        <p style="font-size:13px;color:#7b6fa0;line-height:1.7;margin-bottom:16px;">
-          아래 버튼을 클릭하면 AI(ChatGPT, Claude 등)에 붙여넣을 수 있는 프롬프트가 클립보드에 복사됩니다.
-          AI의 응답(JSON)을 아래 텍스트 영역에 붙여넣으면 자동으로 폼이 채워집니다.
-        </p>
-        <button class="btn btn-primary" onclick="generatePrompt()" style="width:100%;margin-bottom:16px;">
-          프롬프트 생성 & 복사
-        </button>
-        <div class="form-group">
-          <label>AI 응답 JSON 붙여넣기</label>
-          <textarea id="ai-json-paste" rows="6" placeholder='AI가 생성한 JSON을 여기에 붙여넣으세요...'></textarea>
-        </div>
-        <button class="btn btn-success" onclick="parseAiJson()" style="width:100%;">
-          JSON 파싱 & 폼 채우기
-        </button>
+    <div class="form-card" style="margin-top:16px;">
+      <p style="font-size:13px;color:#7b6fa0;line-height:1.7;margin-bottom:16px;">
+        아래 버튼을 클릭하면 AI(ChatGPT, Claude 등)에 붙여넣을 수 있는 프롬프트가 클립보드에 복사됩니다.
+        AI의 응답(JSON)을 아래 텍스트 영역에 붙여넣으면 자동으로 폼이 채워집니다.
+      </p>
+      <button class="btn btn-primary" onclick="generatePrompt()" style="width:100%;margin-bottom:16px;">
+        프롬프트 생성 & 복사
+      </button>
+      <div class="form-group">
+        <label>AI 응답 JSON 붙여넣기</label>
+        <textarea id="ai-json-paste" rows="6" placeholder='AI가 생성한 JSON을 여기에 붙여넣으세요...'></textarea>
       </div>
-    </div>
-
-    <!-- Server AI Generation Mode -->
-    <div id="ai-panel-api" class="ai-panel">
-      <div class="form-card">
-        <p style="font-size:13px;color:#7b6fa0;line-height:1.7;margin-bottom:16px;">
-          서버에서 AI가 직접 테스트를 생성합니다. 주제만 입력하면 자동으로 만들어져요!
-        </p>
-        <button class="btn btn-primary" onclick="callServerAiGenerate()" id="ai-api-btn" style="width:100%;">
-          AI로 자동 생성
-        </button>
-        <div id="ai-api-status" style="margin-top:12px;font-size:13px;color:#9b8ec4;text-align:center;"></div>
-      </div>
+      <button class="btn btn-success" onclick="parseAiJson()" style="width:100%;">
+        JSON 파싱 & 폼 채우기
+      </button>
     </div>
   </div>
 
@@ -861,15 +839,34 @@ function updateResultCount(val) {
 }
 
 // ──────────────────────────────────────────────
-//  SERVER API STORAGE
+//  SUPABASE DIRECT ACCESS
 // ──────────────────────────────────────────────
+const SB_URL = 'https://lpxucsxwkdhgkqjmujxv.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxweHVjc3h3a2RoZ2txam11anh2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzNjE2NDcsImV4cCI6MjA4OTkzNzY0N30.rDBSJ3l1HbQnjh6BuxsOdzGPd4ftQ7tdyV6TEodImcw';
+
+async function sbFetch(method, table, params, body) {
+  let url = `${SB_URL}/rest/v1/${table}`;
+  if (params) url += `?${params}`;
+  const headers = {
+    'apikey': SB_KEY,
+    'Authorization': `Bearer ${SB_KEY}`,
+    'Content-Type': 'application/json',
+    'Prefer': 'return=representation'
+  };
+  const opts = { method, headers };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(url, opts);
+  if (method === 'DELETE') return null;
+  return res.json();
+}
+
 let _cachedCustomTests = [];
 let _cachedInactive = [];
 
 async function getInactiveTests() {
   try {
-    const res = await fetch('/api/inactive');
-    _cachedInactive = await res.json();
+    const rows = await sbFetch('GET', 'app_config', 'key=eq.inactive&select=value');
+    _cachedInactive = (rows && rows.length > 0) ? (rows[0].value || []) : [];
   } catch { _cachedInactive = []; }
   return _cachedInactive;
 }
@@ -877,48 +874,50 @@ function getInactiveTestsSync() { return _cachedInactive; }
 
 async function setInactiveTests(arr) {
   _cachedInactive = arr;
-  await fetch('/api/inactive', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(arr)
-  }).catch(() => {});
+  try {
+    const existing = await sbFetch('GET', 'app_config', 'key=eq.inactive&select=key');
+    if (existing && existing.length > 0) {
+      await sbFetch('PATCH', 'app_config', 'key=eq.inactive', { value: arr });
+    } else {
+      await sbFetch('POST', 'app_config', '', { key: 'inactive', value: arr });
+    }
+  } catch {}
 }
 
 async function getCustomTests() {
   try {
-    const res = await fetch('/api/tests');
-    _cachedCustomTests = await res.json();
+    const rows = await sbFetch('GET', 'tests', 'select=data&order=created_at.asc');
+    _cachedCustomTests = (rows || []).map(r => r.data);
   } catch { _cachedCustomTests = []; }
   return _cachedCustomTests;
 }
 function getCustomTestsSync() { return _cachedCustomTests; }
 
 async function setCustomTests(arr) {
-  // Save each test individually via API
   for (const test of arr) {
-    await fetch('/api/tests', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(test)
-    }).catch(() => {});
+    await saveOneTest(test);
   }
   _cachedCustomTests = arr;
 }
 
 async function saveOneTest(test) {
-  await fetch('/api/tests', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(test)
-  }).catch(() => {});
-  await getCustomTests(); // refresh cache
+  try {
+    const testId = test.id || '';
+    const existing = await sbFetch('GET', 'tests', `id=eq.${encodeURIComponent(testId)}&select=id`);
+    if (existing && existing.length > 0) {
+      await sbFetch('PATCH', 'tests', `id=eq.${encodeURIComponent(testId)}`, { data: test });
+    } else {
+      await sbFetch('POST', 'tests', '', { id: testId, data: test });
+    }
+  } catch {}
+  await getCustomTests();
 }
 
 async function deleteOneTest(id) {
-  await fetch('/api/tests/' + encodeURIComponent(id), {
-    method: 'DELETE'
-  }).catch(() => {});
-  await getCustomTests(); // refresh cache
+  try {
+    await sbFetch('DELETE', 'tests', `id=eq.${encodeURIComponent(id)}`);
+  } catch {}
+  await getCustomTests();
 }
 
 function getAllTests() {
@@ -958,18 +957,6 @@ function switchTab(name) {
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
   if (name === 'trash') renderTrashList();
-}
-
-function switchAiMode(mode) {
-  document.querySelectorAll('.ai-mode-btn').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.ai-panel').forEach(p => p.classList.remove('active'));
-  if (mode === 'prompt') {
-    document.querySelector('.ai-mode-btn:first-child').classList.add('active');
-    document.getElementById('ai-panel-prompt').classList.add('active');
-  } else {
-    document.querySelector('.ai-mode-btn:last-child').classList.add('active');
-    document.getElementById('ai-panel-api').classList.add('active');
-  }
 }
 
 // ──────────────────────────────────────────────
@@ -1037,13 +1024,22 @@ async function toggleTest(id, active) {
 let _cachedTrash = [];
 
 async function getTrash() {
-  try { const res = await fetch('/api/trash'); _cachedTrash = await res.json(); }
-  catch { _cachedTrash = []; }
+  try {
+    const rows = await sbFetch('GET', 'app_config', 'key=eq.trash&select=value');
+    _cachedTrash = (rows && rows.length > 0) ? (rows[0].value || []) : [];
+  } catch { _cachedTrash = []; }
   return _cachedTrash;
 }
 
 async function saveTrash(arr) {
-  await fetch('/api/trash', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(arr) });
+  try {
+    const existing = await sbFetch('GET', 'app_config', 'key=eq.trash&select=key');
+    if (existing && existing.length > 0) {
+      await sbFetch('PATCH', 'app_config', 'key=eq.trash', { value: arr });
+    } else {
+      await sbFetch('POST', 'app_config', '', { key: 'trash', value: arr });
+    }
+  } catch {}
   _cachedTrash = arr;
 }
 
@@ -1682,52 +1678,6 @@ function validateTestData(data) {
   }
   for (const type of resultKeys) {
     if (!data.results[type]) throw new Error(`${type} 유형 결과가 없습니다.`);
-  }
-}
-
-// ──────────────────────────────────────────────
-//  AI: API CALL (Anthropic Claude)
-// ──────────────────────────────────────────────
-async function callServerAiGenerate() {
-  const topic = document.getElementById('ai-topic').value.trim();
-  const qCount = document.getElementById('ai-qcount').value;
-  const rCount = document.getElementById('ai-rcount').value;
-
-  if (!topic) {
-    showToast('테스트 주제를 입력해주세요.');
-    return;
-  }
-
-  const btn = document.getElementById('ai-api-btn');
-  const status = document.getElementById('ai-api-status');
-  btn.disabled = true;
-  btn.textContent = '생성 중...';
-  status.textContent = 'AI가 테스트를 생성하고 있습니다. 최대 1분 정도 걸릴 수 있어요...';
-  status.style.color = '#9b8ec4';
-
-  try {
-    const response = await fetch('/api/ai-generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ topic, qCount: parseInt(qCount), rCount: parseInt(rCount) })
-    });
-
-    const result = await response.json();
-    if (!response.ok || result.error) {
-      throw new Error(result.error || `서버 오류 (${response.status})`);
-    }
-
-    validateTestData(result);
-    fillFormFromData(result);
-    status.textContent = '생성 완료! 폼을 확인 후 저장해주세요.';
-    status.style.color = '#0d7d6c';
-  } catch (e) {
-    status.textContent = '오류: ' + e.message;
-    status.style.color = 'var(--danger)';
-    showToast('AI 생성 실패: ' + e.message);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'AI로 자동 생성';
   }
 }
 
