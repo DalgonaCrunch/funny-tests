@@ -445,7 +445,7 @@ if(sessionStorage.getItem('admin_auth')==='1'){
     <button class="tab-btn active" onclick="switchTab('list')">테스트 목록</button>
     <button class="tab-btn" onclick="switchTab('create')">새 테스트 만들기</button>
     <button class="tab-btn" onclick="switchTab('ai')">AI 자동 생성</button>
-    <button class="tab-btn" onclick="switchTab('io')">내보내기/가져오기</button>
+    <button class="tab-btn" onclick="switchTab('trash')">🗑 휴지통</button>
   </div>
 
   <!-- ========== TAB: Test List ========== -->
@@ -612,30 +612,11 @@ if(sessionStorage.getItem('admin_auth')==='1'){
     </div>
   </div>
 
-  <!-- ========== TAB: Import/Export ========== -->
-  <div id="tab-io" class="tab-panel">
-    <div class="section-title">데이터 내보내기 / 가져오기</div>
-
-    <div class="form-card">
-      <h3 style="font-size:16px;font-weight:700;color:#4a3878;margin-bottom:8px;">내보내기</h3>
-      <p style="font-size:13px;color:#7b6fa0;margin-bottom:16px;line-height:1.6;">
-        커스텀 테스트를 JSON 파일로 내보냅니다. 백업이나 다른 기기로 옮길 때 사용하세요.
-      </p>
-      <button class="btn btn-primary" onclick="exportTests()" style="width:100%;">
-        내보내기 (JSON 다운로드)
-      </button>
-    </div>
-
-    <div class="form-card">
-      <h3 style="font-size:16px;font-weight:700;color:#4a3878;margin-bottom:8px;">가져오기</h3>
-      <p style="font-size:13px;color:#7b6fa0;margin-bottom:16px;line-height:1.6;">
-        JSON 파일을 선택하여 커스텀 테스트를 추가합니다. 기존 테스트는 유지됩니다.
-      </p>
-      <input type="file" id="import-file" accept=".json" class="hidden-input" onchange="importTests(event)">
-      <button class="btn btn-success" onclick="document.getElementById('import-file').click()" style="width:100%;">
-        가져오기 (JSON 파일 선택)
-      </button>
-    </div>
+  <!-- ========== TAB: Trash ========== -->
+  <div id="tab-trash" class="tab-panel">
+    <div class="section-title">🗑 휴지통</div>
+    <p style="font-size:13px;color:#9b8ec4;margin-bottom:16px;">삭제된 테스트가 여기에 보관됩니다. 복원하거나 영구 삭제할 수 있어요.</p>
+    <div class="test-list" id="trash-list"></div>
   </div>
 </div>
 
@@ -649,7 +630,7 @@ if(sessionStorage.getItem('admin_auth')==='1'){
     <p style="color:#7b6fa0;line-height:1.6;" id="modal-delete-msg">이 테스트를 정말 삭제하시겠습니까?</p>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="closeModal('modal-delete')">취소</button>
-      <button class="btn btn-danger" id="modal-delete-confirm">삭제</button>
+      <button class="btn btn-danger" id="modal-delete-confirm">확인</button>
     </div>
   </div>
 </div>
@@ -975,11 +956,12 @@ document.querySelectorAll('.modal-overlay').forEach(el => {
 function switchTab(name) {
   document.querySelectorAll('.tab-btn').forEach((btn, i) => {
     btn.classList.toggle('active', btn.textContent.includes(
-      name === 'list' ? '목록' : name === 'create' ? '만들기' : name === 'ai' ? 'AI' : '내보내기'
+      name === 'list' ? '목록' : name === 'create' ? '만들기' : name === 'ai' ? 'AI' : '휴지통'
     ));
   });
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'trash') renderTrashList();
 }
 
 function switchAiMode(mode) {
@@ -1054,23 +1036,99 @@ async function toggleTest(id, active) {
 }
 
 // ──────────────────────────────────────────────
-//  DELETE TEST
+//  TRASH (휴지통) SYSTEM
 // ──────────────────────────────────────────────
+let _cachedTrash = [];
+
+async function getTrash() {
+  try { const res = await fetch('/api/trash'); _cachedTrash = await res.json(); }
+  catch { _cachedTrash = []; }
+  return _cachedTrash;
+}
+
+async function saveTrash(arr) {
+  await fetch('/api/trash', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(arr) });
+  _cachedTrash = arr;
+}
+
+// 삭제 → 휴지통으로 이동
 function confirmDelete(id) {
   const test = _cachedCustomTests.find(t => t.id === id);
   if (!test) return;
 
   document.getElementById('modal-delete-msg').textContent =
-    `"${test.title}" 테스트를 정말 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`;
+    `"${test.title}" 테스트를 휴지통으로 이동하시겠습니까?`;
 
   const confirmBtn = document.getElementById('modal-delete-confirm');
   confirmBtn.onclick = async () => {
+    // 휴지통에 추가
+    await getTrash();
+    _cachedTrash.push(test);
+    await saveTrash(_cachedTrash);
+    // tests에서 제거
     await deleteOneTest(id);
     let inactive = _cachedInactive.filter(i => i !== id);
     await setInactiveTests(inactive);
     closeModal('modal-delete');
     await renderTestList();
-    showToast('테스트가 삭제되었습니다.');
+    showToast('테스트가 휴지통으로 이동되었습니다.');
+  };
+  openModal('modal-delete');
+}
+
+// 휴지통 목록 렌더
+async function renderTrashList() {
+  const list = document.getElementById('trash-list');
+  if (!list) return;
+  await getTrash();
+
+  if (_cachedTrash.length === 0) {
+    list.innerHTML = '<p style="text-align:center;color:#9b8ec4;padding:40px 0;">휴지통이 비어 있습니다.</p>';
+    return;
+  }
+
+  list.innerHTML = _cachedTrash.map((t, i) => `
+    <div class="test-item" style="opacity:0.7;">
+      <div class="item-emoji">${t.emoji}</div>
+      <div class="item-info">
+        <div class="item-title">${t.title}</div>
+        <div class="item-desc">${t.desc}</div>
+      </div>
+      <div class="item-actions" style="gap:6px;">
+        <button class="btn btn-sm btn-success btn-icon" onclick="restoreFromTrash(${i})" title="복원" style="font-size:14px;">↩</button>
+        <button class="btn btn-sm btn-danger btn-icon" onclick="permanentDelete(${i})" title="영구삭제">&#10005;</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// 복원
+async function restoreFromTrash(index) {
+  const test = _cachedTrash[index];
+  if (!test) return;
+  await saveOneTest(test);
+  _cachedTrash.splice(index, 1);
+  await saveTrash(_cachedTrash);
+  await renderTrashList();
+  await renderTestList();
+  showToast(`"${test.title}" 테스트가 복원되었습니다.`);
+}
+
+// 영구 삭제
+function permanentDelete(index) {
+  const test = _cachedTrash[index];
+  if (!test) return;
+
+  document.getElementById('modal-delete-msg').textContent =
+    `"${test.title}" 테스트를 영구적으로 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`;
+
+  const confirmBtn = document.getElementById('modal-delete-confirm');
+  confirmBtn.onclick = async () => {
+    _cachedTrash.splice(index, 1);
+    await saveTrash(_cachedTrash);
+    closeModal('modal-delete');
+    await renderTrashList();
+    showToast('테스트가 영구 삭제되었습니다.');
   };
   openModal('modal-delete');
 }

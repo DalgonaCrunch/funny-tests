@@ -132,6 +132,29 @@ def save_inactive(data):
     else:
         local_save_inactive(data)
 
+def load_trash():
+    if USE_SUPABASE:
+        rows = _sb_request('GET', 'app_config', 'key=eq.trash&select=value')
+        if rows and len(rows) > 0:
+            return rows[0].get('value', [])
+        return []
+    path = os.path.join(DATA_DIR, 'trash.json')
+    if os.path.exists(path):
+        with open(path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return []
+
+def save_trash(data):
+    if USE_SUPABASE:
+        existing = _sb_request('GET', 'app_config', 'key=eq.trash&select=key')
+        if existing:
+            _sb_request('PATCH', 'app_config', 'key=eq.trash', {'value': data})
+        else:
+            _sb_request('POST', 'app_config', '', {'key': 'trash', 'value': data})
+    else:
+        with open(os.path.join(DATA_DIR, 'trash.json'), 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False)
+
 # ── HTTP Handler ──────────────────────────────────
 
 class AppHandler(SimpleHTTPRequestHandler):
@@ -141,6 +164,8 @@ class AppHandler(SimpleHTTPRequestHandler):
             self._json_response(load_tests())
         elif parsed.path == '/api/inactive':
             self._json_response(load_inactive())
+        elif parsed.path == '/api/trash':
+            self._json_response(load_trash())
         else:
             super().do_GET()
 
@@ -159,6 +184,12 @@ class AppHandler(SimpleHTTPRequestHandler):
             if body is None:
                 return
             save_inactive(body)
+            self._json_response({'ok': True})
+        elif parsed.path == '/api/trash':
+            body = self._read_body()
+            if body is None:
+                return
+            save_trash(body)
             self._json_response({'ok': True})
         else:
             self._json_response({'error': 'Not found'}, 404)
