@@ -156,6 +156,29 @@ def save_trash(data):
         with open(os.path.join(DATA_DIR, 'trash.json'), 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False)
 
+def load_stats():
+    if USE_SUPABASE:
+        rows = _sb_request('GET', 'app_config', 'key=eq.stats&select=value')
+        if rows and len(rows) > 0:
+            return rows[0].get('value', {})
+        return {}
+    path = os.path.join(DATA_DIR, 'stats.json')
+    if os.path.exists(path):
+        with open(path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return {}
+
+def save_stats(data):
+    if USE_SUPABASE:
+        existing = _sb_request('GET', 'app_config', 'key=eq.stats&select=key')
+        if existing:
+            _sb_request('PATCH', 'app_config', 'key=eq.stats', {'value': data})
+        else:
+            _sb_request('POST', 'app_config', '', {'key': 'stats', 'value': data})
+    else:
+        with open(os.path.join(DATA_DIR, 'stats.json'), 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False)
+
 # ── AI Test Generation ────────────────────────────
 
 def ai_generate_test(params):
@@ -240,6 +263,14 @@ class AppHandler(SimpleHTTPRequestHandler):
             self._json_response(load_inactive())
         elif parsed.path == '/api/trash':
             self._json_response(load_trash())
+        elif parsed.path == '/api/stats':
+            qs = parse_qs(parsed.query)
+            test_id = qs.get('testId', [''])[0]
+            all_stats = load_stats()
+            if test_id:
+                self._json_response(all_stats.get(test_id, {}))
+            else:
+                self._json_response(all_stats)
         else:
             super().do_GET()
 
@@ -265,6 +296,21 @@ class AppHandler(SimpleHTTPRequestHandler):
                 return
             save_trash(body)
             self._json_response({'ok': True})
+        elif parsed.path == '/api/stats':
+            body = self._read_body()
+            if body is None:
+                return
+            test_id = body.get('testId', '')
+            result_type = body.get('type', '')
+            if test_id and result_type:
+                all_stats = load_stats()
+                if test_id not in all_stats:
+                    all_stats[test_id] = {}
+                all_stats[test_id][result_type] = all_stats[test_id].get(result_type, 0) + 1
+                save_stats(all_stats)
+                self._json_response({'ok': True})
+            else:
+                self._json_response({'error': 'testId and type required'}, 400)
         elif parsed.path == '/api/ai-generate':
             body = self._read_body()
             if body is None:

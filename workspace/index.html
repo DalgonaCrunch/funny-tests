@@ -337,6 +337,85 @@ body {
   transform: translateX(-50%) translateY(0); opacity: 1;
 }
 
+/* Nickname overlay */
+.nickname-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 200;
+  display: none; align-items: center; justify-content: center;
+}
+.nickname-overlay.show { display: flex; }
+.nickname-modal {
+  background: #fff; border-radius: 24px; padding: 36px 28px; width: 90%; max-width: 360px;
+  text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,.2);
+  animation: fadeSlideIn .35s cubic-bezier(.4,0,.2,1) both;
+}
+.nickname-modal h3 {
+  font-size: 18px; font-weight: 700; color: #2d2252; margin-bottom: 6px;
+}
+.nickname-modal p {
+  font-size: 13px; color: #9b8ec4; margin-bottom: 20px;
+}
+.nickname-input {
+  width: 100%; padding: 14px 16px; border: 2px solid #e8e0f5; border-radius: 14px;
+  font-size: 16px; font-family: inherit; text-align: center; outline: none;
+  transition: border-color .2s;
+}
+.nickname-input:focus { border-color: var(--purple); }
+.nickname-input::placeholder { color: #c4b5dc; }
+.nickname-start-btn {
+  display: block; width: 100%; margin-top: 16px; padding: 16px;
+  border: none; border-radius: 14px; font-size: 16px; font-weight: 700;
+  font-family: inherit; cursor: pointer; color: #fff;
+  background: linear-gradient(135deg, var(--purple), var(--pink));
+  box-shadow: 0 4px 20px rgba(180,80,200,.25);
+  transition: all .2s;
+}
+.nickname-start-btn:active { transform: scale(.97); }
+.nickname-skip {
+  display: block; margin-top: 12px; background: none; border: none;
+  font-size: 13px; color: #9b8ec4; cursor: pointer; font-family: inherit;
+}
+.nickname-skip:hover { color: var(--purple); }
+
+/* Result nickname */
+.result-nickname {
+  font-size: 16px; font-weight: 600; color: var(--purple); margin-bottom: 4px;
+}
+
+/* Result stats */
+.result-stats {
+  margin-top: 28px; padding-top: 24px; border-top: 1px solid #ece4f8; text-align: left;
+}
+.result-stats h4 {
+  font-size: 15px; font-weight: 700; color: #2d2252; margin-bottom: 16px; text-align: center;
+}
+.stat-row {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+}
+.stat-emoji { font-size: 18px; flex-shrink: 0; width: 24px; text-align: center; }
+.stat-info { flex: 1; min-width: 0; }
+.stat-label {
+  font-size: 12px; font-weight: 600; color: #4a3878; margin-bottom: 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.stat-bar-bg {
+  height: 20px; background: #f0eaf8; border-radius: 10px; overflow: hidden; position: relative;
+}
+.stat-bar-fill {
+  height: 100%; border-radius: 10px; transition: width .8s cubic-bezier(.4,0,.2,1);
+  display: flex; align-items: center; justify-content: flex-end; padding-right: 8px;
+  min-width: 0;
+}
+.stat-bar-fill span {
+  font-size: 11px; font-weight: 700; color: #fff;
+}
+.stat-pct {
+  font-size: 13px; font-weight: 700; color: #6b5b8a; flex-shrink: 0; width: 42px; text-align: right;
+}
+.stat-total {
+  text-align: center; font-size: 12px; color: #9b8ec4; margin-top: 12px;
+}
+.stat-row.current .stat-label { color: var(--purple); font-weight: 700; }
+
 /* Footer */
 .footer {
   text-align: center; margin-top: 40px; padding-bottom: 20px;
@@ -412,6 +491,17 @@ body {
       <input type="text" class="share-url-input" id="share-url-input" readonly />
       <button class="share-url-copy" onclick="copyShareUrl()">URL 복사</button>
     </div>
+  </div>
+</div>
+
+<!-- Nickname Input Modal -->
+<div class="nickname-overlay" id="nickname-overlay">
+  <div class="nickname-modal">
+    <h3>닉네임을 입력해주세요</h3>
+    <p>결과에 닉네임이 표시돼요!</p>
+    <input type="text" class="nickname-input" id="nickname-input" placeholder="닉네임 입력" maxlength="10" />
+    <button class="nickname-start-btn" id="nickname-start-btn" onclick="confirmNickname()">시작하기 ✨</button>
+    <button class="nickname-skip" onclick="skipNickname()">건너뛰기</button>
   </div>
 </div>
 
@@ -748,6 +838,8 @@ let currentQuestion = 0;
 let answers = [];
 let generatedImageDataUrl = null;
 let activeQuestions = [];  // 실제 출제될 질문 목록 (예비문항 포함 동적 구성)
+let currentNickname = '';
+let pendingTestId = null;
 
 // ──────────────────────────────────────────────
 //  COLOR SCHEMES FOR RESULT TYPES
@@ -792,7 +884,7 @@ function seededRandom(seed) {
 // ──────────────────────────────────────────────
 //  CANVAS RESULT IMAGE GENERATOR
 // ──────────────────────────────────────────────
-function generateResultImage(emoji, typeName, testTitle, colorScheme) {
+function generateResultImage(emoji, typeName, testTitle, colorScheme, nickname) {
   const W = 600, H = 400;
   const canvas = document.createElement('canvas');
   canvas.width = W;
@@ -920,14 +1012,25 @@ function generateResultImage(emoji, typeName, testTitle, colorScheme) {
   ctx.globalAlpha = 0.7;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
-  ctx.fillText(testTitle, W / 2, 28);
+  ctx.fillText(testTitle, W / 2, 24);
   ctx.globalAlpha = 1;
+
+  // --- Nickname (below title) ---
+  if (nickname) {
+    ctx.font = '600 15px "Noto Sans KR", sans-serif';
+    ctx.fillStyle = colorScheme.accent;
+    ctx.globalAlpha = 0.8;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(nickname + '님의 결과', W / 2, 50);
+    ctx.globalAlpha = 1;
+  }
 
   // --- Emoji (large, center-top) ---
   ctx.font = '80px serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(emoji, W / 2, 140);
+  ctx.fillText(emoji, W / 2, nickname ? 150 : 140);
 
   // --- Type name (bold, below emoji) ---
   ctx.font = '900 30px "Noto Sans KR", sans-serif';
@@ -1054,6 +1157,27 @@ function renderMain() {
 }
 
 function startTestById(id) {
+  pendingTestId = id;
+  currentNickname = '';
+  const input = document.getElementById('nickname-input');
+  input.value = '';
+  document.getElementById('nickname-overlay').classList.add('show');
+  setTimeout(() => input.focus(), 200);
+}
+
+function confirmNickname() {
+  currentNickname = document.getElementById('nickname-input').value.trim();
+  document.getElementById('nickname-overlay').classList.remove('show');
+  actuallyStartTest(pendingTestId);
+}
+
+function skipNickname() {
+  currentNickname = '';
+  document.getElementById('nickname-overlay').classList.remove('show');
+  actuallyStartTest(pendingTestId);
+}
+
+function actuallyStartTest(id) {
   const allTests = loadAllTests();
   const test = allTests.find(t => t.id === id);
   if (!test) return;
@@ -1063,7 +1187,6 @@ function startTestById(id) {
   // 메인 질문 셔플 + 예비문항은 별도 보관
   activeQuestions = [...test.questions].sort(() => Math.random() - 0.5);
   if (test.reserveQuestions && test.reserveQuestions.length > 0) {
-    // 예비문항은 뒤에 대기 (필요할 때 삽입)
     currentTest._reserves = [...test.reserveQuestions].sort(() => Math.random() - 0.5);
   } else {
     currentTest._reserves = [];
@@ -1190,21 +1313,27 @@ function showResult(forceTestId, forceType) {
   const colorScheme = getColorScheme(maxType);
 
   // Generate the canvas result image
-  generatedImageDataUrl = generateResultImage(result.emoji, result.type, testObj.title, colorScheme);
+  generatedImageDataUrl = generateResultImage(result.emoji, result.type, testObj.title, colorScheme, currentNickname);
 
   // Update URL with result params (without reload)
   const shareUrl = `${location.origin}${location.pathname}?test=${testObj.id}&result=${maxType}`;
   history.replaceState(null, '', `?test=${testObj.id}&result=${maxType}`);
 
+  const nicknameHtml = currentNickname
+    ? `<div class="result-nickname">${currentNickname}님의 결과</div>`
+    : '';
+
   const card = document.getElementById('result-card');
   card.innerHTML = `
     <div id="result-capture" style="text-align:center;">
+      ${nicknameHtml}
       <img src="${generatedImageDataUrl}" alt="${result.type}" class="result-img" />
       <div class="result-desc">${result.desc}</div>
       <div class="result-tags">
         ${result.tags.map(t => `<span class="result-tag">${t}</span>`).join('')}
       </div>
     </div>
+    <div id="stats-area"></div>
     <div class="action-btns" style="margin-top:20px;">
       <button class="action-btn btn-save-img" onclick="saveResultImage()">
         <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -1226,7 +1355,13 @@ function showResult(forceTestId, forceType) {
   `;
 
   showScreen('screen-result');
-  if (!forceTestId) launchConfetti();
+  if (!forceTestId) {
+    launchConfetti();
+    // 통계 기록
+    recordStat(testObj.id, maxType);
+  }
+  // 통계 불러오기
+  loadAndRenderStats(testObj, maxType);
 }
 
 // ──────────────────────────────────────────────
@@ -1251,7 +1386,8 @@ function getShareUrl() {
 }
 
 function getShareText() {
-  return `[${currentTest.title}] 나의 결과: ${currentResultText}\n나도 테스트 해보기!`;
+  const prefix = currentNickname ? `${currentNickname}님의` : '나의';
+  return `[${currentTest.title}] ${prefix} 결과: ${currentResultText}\n나도 테스트 해보기!`;
 }
 
 function shareResult() {
@@ -1319,8 +1455,7 @@ function fallbackCopy(text) {
 }
 
 function retryTest() {
-  const idx = TESTS.indexOf(currentTest);
-  startTest(idx);
+  if (currentTest) actuallyStartTest(currentTest.id);
 }
 
 function goHome() {
@@ -1394,6 +1529,72 @@ function launchConfetti() {
   }
   draw();
 }
+
+// ──────────────────────────────────────────────
+//  STATS (통계)
+// ──────────────────────────────────────────────
+async function recordStat(testId, resultType) {
+  try {
+    await fetch('/api/stats', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ testId, type: resultType })
+    });
+  } catch (e) { /* ignore */ }
+}
+
+async function loadAndRenderStats(testObj, myType) {
+  const area = document.getElementById('stats-area');
+  if (!area) return;
+  try {
+    const res = await fetch(`/api/stats?testId=${encodeURIComponent(testObj.id)}`);
+    const stats = await res.json();
+    const resultKeys = Object.keys(testObj.results);
+    const total = resultKeys.reduce((sum, k) => sum + (stats[k] || 0), 0);
+    if (total === 0) { area.innerHTML = ''; return; }
+
+    const colors = {
+      A: '#ff6b9d', B: '#a855f7', C: '#36d6b5', D: '#ffc940', E: '#4d79ff',
+      F: '#f093fb', G: '#38ef7d', H: '#ff8c42', I: '#c44dff', J: '#fdcb6e'
+    };
+
+    let html = '<div class="result-stats"><h4>📊 전체 결과 통계</h4>';
+    resultKeys.forEach(k => {
+      const r = testObj.results[k];
+      const count = stats[k] || 0;
+      const pct = total > 0 ? Math.round(count / total * 100) : 0;
+      const color = colors[k] || '#a855f7';
+      const isCurrent = k === myType;
+      html += `
+        <div class="stat-row${isCurrent ? ' current' : ''}">
+          <span class="stat-emoji">${r.emoji}</span>
+          <div class="stat-info">
+            <div class="stat-label">${r.type}</div>
+            <div class="stat-bar-bg">
+              <div class="stat-bar-fill" style="width:${pct}%;background:${color};">
+                ${pct >= 15 ? `<span>${pct}%</span>` : ''}
+              </div>
+            </div>
+          </div>
+          <span class="stat-pct">${pct}%</span>
+        </div>`;
+    });
+    html += `<div class="stat-total">${total}명 참여</div></div>`;
+    area.innerHTML = html;
+  } catch (e) {
+    area.innerHTML = '';
+  }
+}
+
+// ──────────────────────────────────────────────
+//  NICKNAME ENTER KEY
+// ──────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  const ni = document.getElementById('nickname-input');
+  if (ni) ni.addEventListener('keydown', e => {
+    if (e.key === 'Enter') confirmNickname();
+  });
+});
 
 // ──────────────────────────────────────────────
 //  INIT
