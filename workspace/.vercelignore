@@ -1,0 +1,8 @@
+server.py
+main.py
+pyproject.toml
+requirements.txt
+render.yaml
+.python-version
+*.pyc
+__pycache__
